@@ -1,4 +1,3 @@
-// src/router.ts
 import { Client, Message } from 'discord.js';
 import { CONFIG } from './config.js';
 import { handleCoinCommand } from './commands/coin.js';
@@ -8,6 +7,7 @@ import { calcBaseFeatures } from './indicators/calc.js';
 import { buildCVDandProfile } from './indicators/cvd.js';
 import { decide } from './strategy/signal.js';
 import { buildEmbed } from './ui/embed.js';
+import { handleCoinRoot } from './commands/coin-root.js';
 
 export function initRouter(client: Client) {
   client.on('messageCreate', async (msg: Message) => {
@@ -17,14 +17,12 @@ export function initRouter(client: Client) {
     const parts = msg.content.trim().split(/\s+/);
     const symbol = parts[1] || CONFIG.DEFAULT_SYMBOL;
     const tf = parts[2] || CONFIG.DEFAULT_TF;
+
+    // 분석 1회 실행
     await handleCoinCommand(msg, symbol, tf);
 
-    // 🔥 Top25 / Scalp10 메뉴도 함께 출력
-    const menus = await coinSelectMenusDual();
-    await msg.channel.send({
-      content: '🔍 분석할 코인을 선택하세요 (상위 25 · 단타 10)',
-      components: menus,
-    });
+    // Top25/Scalp10 메뉴 함께 출력
+    await handleCoinRoot(msg);
   });
 
   client.on('interactionCreate', async (i) => {
@@ -44,8 +42,8 @@ export function initRouter(client: Client) {
             : tf.endsWith('h')
             ? Number(tf.replace('h', '')) * 60
             : 15;
-          const end = Date.now(),
-            start = end - Math.max(tfMin, 15) * 60 * 1000;
+          const end = Date.now();
+          const start = end - Math.max(tfMin, 15) * 60 * 1000;
           const trades = await fetchRecentTrades(symbol, start, end, 5000);
           const { cvdSeries, profile } = buildCVDandProfile(
             trades,
@@ -53,9 +51,7 @@ export function initRouter(client: Client) {
             Math.max(0.5, f.last * 0.001),
           );
           const cvdNow = cvdSeries.at(-1)?.cvd ?? 0;
-          const cvdUp =
-            cvdSeries.length > 2 &&
-            cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
+          const cvdUp = cvdSeries.length > 2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
           const profileTop = profile
             .slice()
             .sort((a, b) => b.vol - a.vol)
@@ -67,9 +63,7 @@ export function initRouter(client: Client) {
           const menus = await coinSelectMenusDual();
 
           await i.editReply({
-            embeds: [
-              buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop),
-            ],
+            embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
             components: [rowsButtons(), rowSel1, rowSel2, ...menus],
           });
         } else if (i.customId === BTN.LONG || i.customId === BTN.SHORT) {
@@ -101,8 +95,8 @@ export function initRouter(client: Client) {
           : tf.endsWith('h')
           ? Number(tf.replace('h', '')) * 60
           : 15;
-        const end = Date.now(),
-          start = end - Math.max(tfMin, 15) * 60 * 1000;
+        const end = Date.now();
+        const start = end - Math.max(tfMin, 15) * 60 * 1000;
         const trades = await fetchRecentTrades(symbol, start, end, 5000);
         const { cvdSeries, profile } = buildCVDandProfile(
           trades,
@@ -110,9 +104,7 @@ export function initRouter(client: Client) {
           Math.max(0.5, f.last * 0.001),
         );
         const cvdNow = cvdSeries.at(-1)?.cvd ?? 0;
-        const cvdUp =
-          cvdSeries.length > 2 &&
-          cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
+        const cvdUp = cvdSeries.length > 2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
         const profileTop = profile
           .slice()
           .sort((a, b) => b.vol - a.vol)
@@ -124,21 +116,18 @@ export function initRouter(client: Client) {
         const menus = await coinSelectMenusDual();
 
         await i.editReply({
-          embeds: [
-            buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop),
-          ],
+          embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
           components: [rowsButtons(), rowSel1, rowSel2, ...menus],
         });
       }
     } catch (e) {
       console.error('Router error:', e);
       if (i.isRepliable()) {
-        if (i.deferred || i.replied)
-          await i.editReply({
-            content: '오류가 발생했습니다.',
-            components: [],
-          });
-        else await i.reply({ content: '오류가 발생했습니다.', ephemeral: true });
+        if (i.deferred || i.replied) {
+          await i.editReply({ content: '오류가 발생했습니다.', components: [] });
+        } else {
+          await i.reply({ content: '오류가 발생했습니다.', ephemeral: true });
+        }
       }
     }
   });
