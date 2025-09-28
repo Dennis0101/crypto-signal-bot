@@ -17,6 +17,14 @@ export type Trade = {
   side: "buy" | "sell";
 };
 
+export type Ticker = {
+  symbol: string;       // BTCUSDT
+  last: number;         // 최신가
+  change24h: number;    // 24h 등락률
+  turnover24h: number;  // 24h 거래대금(USDT)
+  volume24h: number;    // 24h 거래량
+};
+
 const base = CONFIG.BITGET_BASE;
 
 /** 공통 JSON fetch */
@@ -87,8 +95,7 @@ export async function fetchCandles(
 
   // 2) v1 mix (시간 범위 필수)
   const endMs = Date.now();
-  const span =
-    Math.max(50, Math.min(1000, limit)) * tfSecs * 1000;
+  const span = Math.max(50, Math.min(1000, limit)) * tfSecs * 1000;
   const startMs = endMs - span;
   try {
     const url = new URL("/api/mix/v1/market/candles", base);
@@ -193,4 +200,54 @@ export async function fetchRecentTrades(
   }
 
   return [];
+}
+
+/** ===== 랭킹용 티커 ===== */
+function num(v: any, d = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+}
+
+const TICKER_CACHE_TTL =
+  (CONFIG as any)?.CACHE_TTL_MS ? Number((CONFIG as any).CACHE_TTL_MS) : 60_000;
+let _tickersCache: { at: number; data: Ticker[] } | null = null;
+
+export async function fetchAllTickers(): Promise<Ticker[]> {
+  const now = Date.now();
+  if (_tickersCache && now - _tickersCache.at < TICKER_CACHE_TTL) {
+    return _tickersCache.data;
+  }
+
+  const url = new URL("/api/v2/mix/market/tickers", base);
+  url.searchParams.set("productType", "usdt-futures");
+  const j: any = await fetchJson(url);
+  const rows: any[] = Array.isArray(j?.data) ? j.data : [];
+
+  const out: Ticker[] = rows.map((r: any) => ({
+    symbol: r.symbol,
+    last: num(r.last),
+    change24h: num(r.changeUtc24h, 0),
+    turnover24h: num(r.turnover24h, 0),
+    volume24h: num(r.baseVol24h, 0),
+  }));
+
+  _tickersCache = { at: now, data: out };
+  return out;
+}
+
+export async function getTopCoinsByVolume(limit = 25): Promise<Ticker[]> {
+  const all = await fetchAllTickers();
+  return all
+    .slice()
+    .sort((a, b) => b.turnover24h - a.turnover24h)
+    .slice(0, limit);
+}
+
+export async function getTopScalpCoins(limit = 10): Promise<Ticker[]> {
+  const all = await fetchAllTickers();
+  return all
+    .filter((t) => Math.abs(t.change24h) > 0.03) // ±3% 이상
+    .slice()
+    .sort((a, b) => b.turnover24h - a.turnover24h)
+    .slice(0, limit);
 }
