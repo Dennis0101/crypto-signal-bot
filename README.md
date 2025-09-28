@@ -1,37 +1,42 @@
-# 🪙 CoinInsight Bot (코인 시세 & AI 분석 디스코드 봇)
+# 📊 Discord Crypto Analysis Bot
 
-> **실시간 암호화폐 분석 · 자동 신호 생성 · AI 추천 사유 제공**
-
-![preview](https://cdn.discordapp.com/attachments/1413350627936833637/1421668008144932865/IMG_8078.png?ex=68d9df02&is=68d88d82&hm=fbf794d51992712d5d8d4100e85091b566aa2e738485f0b2ada82fef2bfe3b7b&)
-
----
-
-## ✨ 기능 소개
-
-- **실시간 가격/지표 분석**
-  - Bitget API 기반 선물 캔들 데이터
-  - EMA20 / EMA50, RSI, 변동성, CVD 분석
-
-- **자동 신호 생성**
-  - 룰 기반 + OpenAI 결합
-  - 방향성: LONG / SHORT / NEUTRAL
-  - 신뢰도 점수 + 진입/손절/익절 레벨
-
-- **추천 이유 설명**
-  - 왜 롱(혹은 숏)인지, 어떤 근거가 있는지 자동으로 문장화
-  - `EMA·RSI·CVD` 지표와 볼륨 상위 레벨 기반
-
-- **디스코드 임베드 UI**
-  - 깔끔한 카드 형식
-  - 버튼: `Analyze`, `Long`, `Short`, `Refresh`
-  - 글로벌 어디서든 “와” 할 비주얼 🎨
+Bitget 선물 데이터를 기반으로 **실시간 코인 분석, 신호 제공, 거래대금 랭킹/단타 추천**을 지원하는 디스코드 봇입니다.  
+UI는 버튼 + 드롭다운 셀렉터로 구성되어 있으며, 실시간 가격/변동률까지 표시됩니다.
 
 ---
 
-## 🚀 빠른 시작
+## 🚀 기능 소개
 
-### 1. 클론 & 의존성 설치
+### 🔎 주요 기능
+- `!코인 [심볼] [타임프레임]` → 실시간 분석 실행
+- 버튼 인터랙션:
+  - **Analyze**: 최신 데이터로 다시 분석
+  - **Long / Short**: 매수/매도 선택(실제 주문 미체결, 시뮬레이션 알림만)
+  - **Refresh**: 최신 데이터 갱신
+- 드롭다운 인터랙션:
+  - **심볼 선택**: BTCUSDT, ETHUSDT 등
+  - **타임프레임 선택**: 1m / 5m / 15m / 1h / 4h
+  - **🏆 상위 25위 (24h 거래대금 기준)**
+  - **⚡ 단타 추천 10 (변동성 우선)**
+
+### 📊 분석 지표
+- **캔들 데이터 (OHLCV)**  
+- **최근 체결 데이터 기반 CVD (Cumulative Volume Delta)**  
+- **Volume Profile** (주요 거래대금 가격대 Top3)  
+- **자동 신호 생성 (decide)**: Long / Short / Neutral  
+
+---
+
+## 🖼️ UI 예시
+
+![Bot UI Example](https://cdn.discordapp.com/attachments/1413350627936833637/1421668008144932865/IMG_8078.png)
+
+---
+
+## ⚙️ 설치 및 실행 방법
+ Railway 에서 배포 했습니다 .
+### 1️⃣ 환경 설정
 ```bash
-git clone https://github.com/yourname/coininsight-bot.git
-cd coininsight-bot
+git clone https://github.com/yourname/crypto-discord-bot.git
+cd crypto-discord-bot
 npm install
