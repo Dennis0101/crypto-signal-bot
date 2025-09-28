@@ -12,16 +12,14 @@ import { decide } from './strategy/signal.js';
 import { buildEmbed } from './ui/embed.js';
 
 // 기본 UI
-import { BTN, SEL, rowsButtons, rowsSelects, coinSelectMenusDual } from './ui/components.js';
+import { BTN, SEL, rowsButtons, rowsSelects } from './ui/components.js';
 
 // Paper Trading UI & 서비스
 import {
   PAPER_BTN, PAPER_SEL,
   rowPaperButtons, rowPaperMgmt, rowPaperSelects
 } from './ui/components.js';
-import {
-  getAccount
-} from './paper/store.js';
+import { getAccount } from './paper/store.js';
 import {
   placePaperOrder, closePaperPosition, flipPaperPosition,
   setPaperAmount, setPaperLeverage, toggleCurrency,
@@ -42,7 +40,7 @@ export function initRouter(client: Client) {
     // 1) 기본 분석 메시지
     await handleCoinCommand(msg, symbol, tf);
 
-    // 2) 상위25/단타10 드롭다운(보조 메시지)
+    // 2) 상위25/단타10 드롭다운(보조 메시지로 별도 전송)
     await handleCoinRoot(msg);
   });
 
@@ -76,27 +74,24 @@ export function initRouter(client: Client) {
           .map(n => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`).join(', ');
 
         const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
-        const menus = await coinSelectMenusDual();
-
-        // ✅ 여기에 Paper UI를 함께 붙인다
         const acc = getAccount(i.user.id);
 
+        // ✅ 메인 메시지에는 5줄만 (디스코드 제한)
         await i.editReply({
           embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
           components: [
-            rowsButtons(),
-            rowSel1, rowSel2,
-            ...menus,
-            rowPaperButtons(acc.enabled),
-            rowPaperMgmt(acc.enabled),
-            ...rowPaperSelects(acc.orderAmountUSD, acc.leverage),
+            rowsButtons(),          // 1
+            rowSel1,                // 2
+            rowSel2,                // 3
+            rowPaperButtons(acc.enabled), // 4
+            rowPaperMgmt(acc.enabled),    // 5
           ],
         });
         return;
       }
 
       /* ----- Paper 버튼 ----- */
-      if (i.isButton() && Object.values(PAPER_BTN).includes(i.customId as any)) {
+      if (i.isButton() && (Object.values(PAPER_BTN) as string[]).includes(i.customId)) {
         const m = i.message.embeds?.[0]?.title?.match(/📊 (.+) · (.+) 신호/);
         const symbol = (m?.[1] || CONFIG.DEFAULT_SYMBOL);
         const userId = i.user.id;
@@ -139,7 +134,7 @@ export function initRouter(client: Client) {
               const rows = [
                 rowPaperButtons(acc.enabled),
                 rowPaperMgmt(acc.enabled),
-                ...rowPaperSelects(acc.orderAmountUSD, acc.leverage),
+                ...rowPaperSelects(acc.orderAmountUSD, acc.leverage), // 금액/레버리지는 에페메럴에서만
               ];
               await i.reply({ embeds: [e], components: rows, ephemeral: true });
               break;
@@ -150,7 +145,7 @@ export function initRouter(client: Client) {
               break;
             }
             case PAPER_BTN.REFRESH: {
-              // 메인 임베드 재계산(선택)
+              // 메인 임베드 재계산
               const tfMatch = i.message.embeds?.[0]?.title?.match(/📊 .+ · (.+) 신호/);
               const tf = (tfMatch?.[1] || CONFIG.DEFAULT_TF);
 
@@ -171,7 +166,7 @@ export function initRouter(client: Client) {
 
               await i.update({
                 embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
-                components: i.message.components // 기존 버튼 유지
+                components: i.message.components // 기존 5줄 유지
               });
               break;
             }
@@ -216,19 +211,16 @@ export function initRouter(client: Client) {
           .map(n => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`).join(', ');
 
         const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
-        const menus = await coinSelectMenusDual();
-
         const acc = getAccount(i.user.id);
 
         await i.editReply({
           embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
           components: [
-            rowsButtons(),
-            rowSel1, rowSel2,
-            ...menus,
-            rowPaperButtons(acc.enabled),
-            rowPaperMgmt(acc.enabled),
-            ...rowPaperSelects(acc.orderAmountUSD, acc.leverage),
+            rowsButtons(),                // 1
+            rowSel1,                      // 2
+            rowSel2,                      // 3
+            rowPaperButtons(acc.enabled), // 4
+            rowPaperMgmt(acc.enabled),    // 5
           ],
         });
         return;
