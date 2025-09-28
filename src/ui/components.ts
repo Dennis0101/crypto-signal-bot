@@ -14,6 +14,8 @@ import {
   type Ticker,
 } from '../clients/bitget.js';
 
+/* ====================== 기본 분석 UI ====================== */
+
 export const BTN = {
   ANALYZE: 'analyze',
   LONG: 'long',
@@ -153,4 +155,66 @@ export async function coinSelectMenusDual() {
 
     return [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(fallback)];
   }
+}
+
+/* ====================== 가상 선물(Paper) UI ====================== */
+
+// --- 추가 상수 ---
+export const PAPER_BTN = {
+  TOGGLE: 'paper_toggle',  // 활성/비활성
+  LONG: 'paper_long',
+  SHORT: 'paper_short',
+  CLOSE: 'paper_close',
+  FLIP: 'paper_flip',
+  RESET: 'paper_reset',
+  PORT: 'paper_portfolio', // 요약 보기
+  CURR: 'paper_currency',  // USD↔KRW 토글
+  REFRESH: 'paper_refresh' // 현재가/PNL 새로고침
+} as const;
+
+export const PAPER_SEL = {
+  AMOUNT: 'paper_amount',  // 주문 금액(USD)
+  LEV: 'paper_lev'         // 레버리지
+} as const;
+
+// --- 가상선물 버튼행 ---
+export function rowPaperButtons(enabled = true) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(PAPER_BTN.TOGGLE).setLabel(enabled ? 'Paper: ON' : 'Paper: OFF')
+      .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(PAPER_BTN.LONG).setLabel('Long').setStyle(ButtonStyle.Primary).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.SHORT).setLabel('Short').setStyle(ButtonStyle.Danger).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.CLOSE).setLabel('Close').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.FLIP).setLabel('Flip').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
+  );
+}
+
+export function rowPaperMgmt(enabled = true) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(PAPER_BTN.PORT).setLabel('Portfolio').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(PAPER_BTN.CURR).setLabel('USD ↔ KRW').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(PAPER_BTN.RESET).setLabel('Reset').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.REFRESH).setLabel('Refresh PnL').setStyle(ButtonStyle.Secondary),
+  );
+}
+
+export function rowPaperSelects(currentAmt = 100, currentLev = 5) {
+  const amount = new StringSelectMenuBuilder()
+    .setCustomId(PAPER_SEL.AMOUNT)
+    .setPlaceholder(`금액(USD) · 현재 ${currentAmt}`)
+    .addOptions([25,50,100,250,500,1000,2000].map(v =>
+      new StringSelectMenuOptionBuilder().setLabel(`$${v}`).setValue(String(v)).setDefault(v===currentAmt)
+    ));
+
+  const lev = new StringSelectMenuBuilder()
+    .setCustomId(PAPER_SEL.LEV)
+    .setPlaceholder(`레버리지 · 현재 ${currentLev}x`)
+    .addOptions([1,2,3,5,10,15,20,30,50].map(v =>
+      new StringSelectMenuOptionBuilder().setLabel(`${v}x`).setValue(String(v)).setDefault(v===currentLev)
+    ));
+
+  return [
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(amount),
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(lev),
+  ];
 }
