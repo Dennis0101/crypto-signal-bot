@@ -165,7 +165,7 @@ export async function fetchRecentTrades(
     urlRecent.searchParams.set("symbol", toV2Symbol(symbol));
     urlRecent.searchParams.set("productType", "usdt-futures");
     const jr: any = await fetchJson(urlRecent);
-    const rowsR: any[] = Array.isArray(jr?.data) ? j.data : [];
+    const rowsR: any[] = Array.isArray(jr?.data) ? jr.data : [];
     const outR = rowsR
       .map((t: any) => ({
         time: Number(t.ts ?? t.time ?? t[3]),
