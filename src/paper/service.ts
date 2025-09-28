@@ -1,10 +1,12 @@
-import { fetchTicker } from '../clients/bitget.js';
+// src/paper/service.ts
 import {
   getAccount, getPosition, upsertPosition, removePosition,
   addEquity, setOrderAmount, setLeverage, setCurrency, setEnabled,
   resetAccount, type Side
 } from './store.js';
 import { qtyFromNotionalUSD, unrealizedPnlUSD } from './math.js';
+// ✅ 안전 현재가 헬퍼
+import { getSafePrice } from './price.js';
 
 export function toggleEnabled(userId: string): boolean {
   const acc = getAccount(userId);
@@ -33,13 +35,17 @@ export function resetPaper(userId: string) {
 }
 
 /** 시장가 체결(가상) */
-export async function placePaperOrder(userId: string, symbol: string, side: Side): Promise<{price:number; qty:number; lev:number}> {
+export async function placePaperOrder(
+  userId: string,
+  symbol: string,
+  side: Side
+): Promise<{ price: number; qty: number; lev: number }> {
   const acc = getAccount(userId);
   if (!acc.enabled) throw new Error('Paper OFF');
 
-  const t = await fetchTicker(symbol);
-  if (!t || !isFinite(t.price)) throw new Error('현재가 조회 실패');
-  const price = t.price;
+  // ⬇️ 안전 현재가 사용 (내부적으로 여러 소스/재시도 가능)
+  const price = await getSafePrice(symbol);
+  if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
   const lev = acc.leverage;
   const qty = qtyFromNotionalUSD(acc.orderAmountUSD, price, lev);
@@ -47,7 +53,7 @@ export async function placePaperOrder(userId: string, symbol: string, side: Side
   const ex = getPosition(userId, symbol);
   if (ex) {
     if (ex.side === side) {
-      // 동일 방향 → 평균가 갱신
+      // 동일 방향 → 가중 평균가 갱신
       const notionalOld = ex.entry * ex.qty;
       const notionalNew = price * qty;
       const qtySum = ex.qty + qty;
@@ -55,7 +61,7 @@ export async function placePaperOrder(userId: string, symbol: string, side: Side
       upsertPosition(userId, { ...ex, entry: entryNew, qty: qtySum, lev });
       return { price, qty, lev };
     } else {
-      // 반대 → 기존 청산 후 새 포지션
+      // 반대 포지션 보유 → 기존 청산 후 새 포지션
       await closePaperPosition(userId, symbol);
     }
   }
@@ -67,13 +73,16 @@ export async function placePaperOrder(userId: string, symbol: string, side: Side
 }
 
 /** 청산 */
-export async function closePaperPosition(userId: string, symbol: string): Promise<{price:number; pnl:number}> {
+export async function closePaperPosition(
+  userId: string,
+  symbol: string
+): Promise<{ price: number; pnl: number }> {
   const pos = getPosition(userId, symbol);
   if (!pos) throw new Error('포지션 없음');
 
-  const t = await fetchTicker(symbol);
-  if (!t || !isFinite(t.price)) throw new Error('현재가 조회 실패');
-  const price = t.price;
+  // ⬇️ 안전 현재가 사용
+  const price = await getSafePrice(symbol);
+  if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
   const pnl = unrealizedPnlUSD(pos.side, pos.entry, price, pos.qty);
   addEquity(userId, pnl);
