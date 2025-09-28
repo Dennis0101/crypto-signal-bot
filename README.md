@@ -2,7 +2,7 @@
 
 > **실시간 암호화폐 분석 · 자동 신호 생성 · AI 추천 사유 제공**
 
-![screenshot](docs/screenshot.png)
+![preview](https://cdn.discordapp.com/attachments/1413350627936833637/1421668008144932865/IMG_8078.png?ex=68d9df02&is=68d88d82&hm=fbf794d51992712d5d8d4100e85091b566aa2e738485f0b2ada82fef2bfe3b7b&)
 
 ---
 
