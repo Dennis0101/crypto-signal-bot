@@ -83,7 +83,7 @@ export function buildEmbed(
         inline: false
       }
     )
-    .setFooter({ text: `투자 조언 아님 · 주문 비활성(기본)${decision.risk ? ` · 리스크: ${decision.risk}` : ''}` });
+    .setFooter({ text: `📉코인 선물거래📈 (AI 분석봇📊) · 주문 비활성❌(기본)· 👨‍💻개발자 : LEE GUN ${decision.risk ? ` · 리스크: ${decision.risk}` : ''}` });
 
   return embed;
 }
