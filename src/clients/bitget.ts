@@ -1,3 +1,4 @@
+// src/clients/bitget.ts
 import fetch from "node-fetch";
 import { CONFIG } from "../config.js";
 
@@ -290,57 +291,57 @@ export async function fetchTicker(symbol: string): Promise<{
   low24h?: number;
   vol24h?: number;
 } | null> {
+  // 내부 헬퍼
+  const toNum = (v: any): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const firstFinite = (...vals: (number|undefined)[]) => {
+    for (const v of vals) if (Number.isFinite(v as number)) return v as number;
+    return undefined;
+  };
+
   try {
     const url = new URL('/api/v2/mix/market/ticker', base);
-    url.searchParams.set('symbol', toV2Symbol(symbol));
+    // v2는 _UMCBL 없이 심볼 사용
+    url.searchParams.set('symbol', symbol.replace('_UMCBL',''));
     url.searchParams.set('productType', 'usdt-futures');
 
     const j: any = await fetchJson(url);
 
-    // data가 객체 또는 [객체]로 오는 경우 모두 처리
-    const root = j?.data;
-    const d = Array.isArray(root) ? root[0] : root;
+    // data가 객체 또는 [객체]로 올 수 있음
+    const d = Array.isArray(j?.data) ? j.data[0] : j?.data;
     if (!d || typeof d !== 'object') return null;
 
-    const toNum = (v: any): number => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : NaN;
-    };
+    const price = firstFinite(
+      toNum(d.last),
+      toNum(d.lastPrice),
+      toNum(d.close),
+      toNum(d.price)
+    );
+    if (!Number.isFinite(price)) return null;
 
-    const price =
-      toNum(d.last) ??
-      toNum(d.lastPrice) ??
-      toNum(d.close) ??
-      toNum(d.price);
-
-    const raw =
-      d.changeUtc24h ??
-      d.changeRatio ??
-      d.changePct ??
-      d.change ??
-      d.pchg;
-
+    // 등락률 표준화(항상 소수)
+    const raw = d.changeUtc24h ?? d.changeRatio ?? d.changePct ?? d.change ?? d.pchg;
     let change = 0;
     if (typeof raw === 'string' && raw.endsWith('%')) {
-      const v = toNum(raw.replace('%', ''));
+      const v = toNum(raw.replace('%',''));
       change = Number.isFinite(v) ? v / 100 : 0;
     } else {
       const v = toNum(raw);
       change = Number.isFinite(v) ? (Math.abs(v) > 1.5 ? v / 100 : v) : 0;
     }
 
-    const high24h = toNum(d.high24h) ?? toNum(d.high);
-    const low24h  = toNum(d.low24h)  ?? toNum(d.low);
-    const vol24h  = toNum(d.baseVolume24h) ?? toNum(d.baseVol24h) ?? toNum(d.volume);
-
-    if (!Number.isFinite(price)) return null;
+    const high24h = firstFinite(toNum(d.high24h), toNum(d.high));
+    const low24h  = firstFinite(toNum(d.low24h),  toNum(d.low));
+    const vol24h  = firstFinite(toNum(d.baseVolume24h), toNum(d.baseVol24h), toNum(d.volume));
 
     return {
       price,
       change24h: change,
-      high24h: Number.isFinite(high24h) ? high24h : undefined,
-      low24h:  Number.isFinite(low24h)  ? low24h  : undefined,
-      vol24h:  Number.isFinite(vol24h)  ? vol24h  : undefined,
+      high24h,
+      low24h,
+      vol24h,
     };
   } catch (e) {
     console.error('fetchTicker error', e);
