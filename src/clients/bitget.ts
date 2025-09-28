@@ -56,6 +56,11 @@ function toV1FuturesSymbol(sym: string) {
   return sym.endsWith("_UMCBL") ? sym : `${sym}_UMCBL`;
 }
 
+function num(v: any, d = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+}
+
 /** ===== Candles ===== */
 export async function fetchCandles(
   symbol: string,
@@ -201,11 +206,6 @@ export async function fetchRecentTrades(
 
 /** ===== 랭킹/심볼 ===== */
 
-function num(v: any, d = 0): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
-}
-
 /** 간단 캐시 (API 과호출 방지) */
 const TICKER_CACHE_TTL =
   (CONFIG as any)?.CACHE_TTL_MS ? Number((CONFIG as any).CACHE_TTL_MS) : 60_000;
@@ -278,4 +278,43 @@ export async function scalpTop10(): Promise<Ticker[]> {
     .sort((a:any,b:any) => b._score - a._score)
     .slice(0,10)
     .map(({ _score, ...rest }: any) => rest as Ticker);
+}
+
+/** ===== 단일 심볼 실시간 Ticker =====
+ * GET /api/v2/mix/market/ticker?symbol=BTCUSDT&productType=usdt-futures
+ */
+export async function fetchTicker(symbol: string): Promise<{
+  price: number;
+  change24h: number;   // 소수 (0.031 = +3.1%)
+  high24h?: number;
+  low24h?: number;
+  vol24h?: number;
+} | null> {
+  try {
+    const url = new URL('/api/v2/mix/market/ticker', base);
+    url.searchParams.set('symbol', toV2Symbol(symbol));
+    url.searchParams.set('productType', 'usdt-futures');
+
+    const j: any = await fetchJson(url);
+    const d = j?.data;
+    if (!d) return null;
+
+    const raw = d.changeUtc24h ?? d.change ?? d.changeRatio ?? d.pchg;
+    const chg = typeof raw === 'string' && raw.endsWith('%')
+      ? Number(raw.replace('%','')) / 100
+      : Number(raw);
+
+    return {
+      price: Number(d.last ?? d.close ?? d.lastPrice ?? d.price),
+      change24h: Number.isFinite(chg)
+        ? (Math.abs(chg) > 1.5 ? chg / 100 : chg) // %로 오면 /100
+        : 0,
+      high24h: Number(d.high24h ?? d.high),
+      low24h: Number(d.low24h ?? d.low),
+      vol24h: Number(d.baseVolume24h ?? d.baseVol24h ?? d.volume),
+    };
+  } catch (e) {
+    console.error('fetchTicker error', e);
+    return null;
+  }
 }
