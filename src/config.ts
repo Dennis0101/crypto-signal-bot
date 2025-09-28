@@ -10,7 +10,7 @@ export const CONFIG = {
   DEFAULT_SYMBOL: 'BTCUSDT',
   DEFAULT_TF: '15m',
   CATEGORY: 'USDT-FUTURES',
-  TF_CHOICES: ['1m','5m','15m','1h','4h'],
+  TF_CHOICES: ['1m', '5m', '15m', '1h', '4h'],
   SYMBOL_CHOICES: [
     'BTCUSDT',
     'ETHUSDT',
@@ -21,7 +21,15 @@ export const CONFIG = {
   ],
   COOLDOWN_MS: 30_000,
   CACHE_TTL_MS: 15_000,
-  PORT: Number(process.env.PORT || 3000)  // Railway가 주입
+  PORT: Number(process.env.PORT || 3000),  // Railway가 주입
+
+  // ===== 페이퍼 트레이딩(가상 선물거래) =====
+  PAPER: {
+    DEFAULT_EQUITY_USD: 1000,   // 기본 가상자본(USD)
+    DEFAULT_LEVERAGE: 5,        // 기본 레버리지
+    MAX_LEVERAGE: 50,           // 상한
+    FX_USDKRW: Number(process.env.FX_USDKRW || 1400), // 원화 환산 비율
+  }
 };
 
 if (!CONFIG.DISCORD_TOKEN) {
