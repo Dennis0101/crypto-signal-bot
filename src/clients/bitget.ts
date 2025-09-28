@@ -165,7 +165,7 @@ export async function fetchRecentTrades(
     urlRecent.searchParams.set("symbol", toV2Symbol(symbol));
     urlRecent.searchParams.set("productType", "usdt-futures");
     const jr: any = await fetchJson(urlRecent);
-    const rowsR: any[] = Array.isArray(jr?.data) ? jr.data : [];
+    const rowsR: any[] = Array.isArray(jr?.data) ? j.data : [];
     const outR = rowsR
       .map((t: any) => ({
         time: Number(t.ts ?? t.time ?? t[3]),
@@ -280,7 +280,7 @@ export async function scalpTop10(): Promise<Ticker[]> {
     .map(({ _score, ...rest }: any) => rest as Ticker);
 }
 
-/** ===== 단일 심볼 실시간 Ticker =====
+/** ===== 단일 심볼 실시간 Ticker (강화판) =====
  * GET /api/v2/mix/market/ticker?symbol=BTCUSDT&productType=usdt-futures
  */
 export async function fetchTicker(symbol: string): Promise<{
@@ -296,22 +296,51 @@ export async function fetchTicker(symbol: string): Promise<{
     url.searchParams.set('productType', 'usdt-futures');
 
     const j: any = await fetchJson(url);
-    const d = j?.data;
-    if (!d) return null;
 
-    const raw = d.changeUtc24h ?? d.change ?? d.changeRatio ?? d.pchg;
-    const chg = typeof raw === 'string' && raw.endsWith('%')
-      ? Number(raw.replace('%','')) / 100
-      : Number(raw);
+    // data가 객체 또는 [객체]로 오는 경우 모두 처리
+    const root = j?.data;
+    const d = Array.isArray(root) ? root[0] : root;
+    if (!d || typeof d !== 'object') return null;
+
+    const toNum = (v: any): number => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    const price =
+      toNum(d.last) ??
+      toNum(d.lastPrice) ??
+      toNum(d.close) ??
+      toNum(d.price);
+
+    const raw =
+      d.changeUtc24h ??
+      d.changeRatio ??
+      d.changePct ??
+      d.change ??
+      d.pchg;
+
+    let change = 0;
+    if (typeof raw === 'string' && raw.endsWith('%')) {
+      const v = toNum(raw.replace('%', ''));
+      change = Number.isFinite(v) ? v / 100 : 0;
+    } else {
+      const v = toNum(raw);
+      change = Number.isFinite(v) ? (Math.abs(v) > 1.5 ? v / 100 : v) : 0;
+    }
+
+    const high24h = toNum(d.high24h) ?? toNum(d.high);
+    const low24h  = toNum(d.low24h)  ?? toNum(d.low);
+    const vol24h  = toNum(d.baseVolume24h) ?? toNum(d.baseVol24h) ?? toNum(d.volume);
+
+    if (!Number.isFinite(price)) return null;
 
     return {
-      price: Number(d.last ?? d.close ?? d.lastPrice ?? d.price),
-      change24h: Number.isFinite(chg)
-        ? (Math.abs(chg) > 1.5 ? chg / 100 : chg) // %로 오면 /100
-        : 0,
-      high24h: Number(d.high24h ?? d.high),
-      low24h: Number(d.low24h ?? d.low),
-      vol24h: Number(d.baseVolume24h ?? d.baseVol24h ?? d.volume),
+      price,
+      change24h: change,
+      high24h: Number.isFinite(high24h) ? high24h : undefined,
+      low24h:  Number.isFinite(low24h)  ? low24h  : undefined,
+      vol24h:  Number.isFinite(vol24h)  ? vol24h  : undefined,
     };
   } catch (e) {
     console.error('fetchTicker error', e);
