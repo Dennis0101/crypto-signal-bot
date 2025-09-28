@@ -11,7 +11,14 @@ export const CONFIG = {
   DEFAULT_TF: '15m',
   CATEGORY: 'USDT-FUTURES',
   TF_CHOICES: ['1m','5m','15m','1h','4h'],
-  SYMBOL_CHOICES: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','ARBUSDT'],
+  SYMBOL_CHOICES: [
+    'BTCUSDT',
+    'ETHUSDT',
+    'SOLUSDT',
+    'XRPUSDT',
+    'ARBUSDT',
+    'ONDOUSDT',   // 👈 ONDO 코인 추가
+  ],
   COOLDOWN_MS: 30_000,
   CACHE_TTL_MS: 15_000,
   PORT: Number(process.env.PORT || 3000)  // Railway가 주입
