@@ -20,9 +20,9 @@ export type Trade = {
 export type Ticker = {
   symbol: string;       // BTCUSDT
   last: number;         // 최신가
-  change24h: number;    // 24h 등락률
-  turnover24h: number;  // 24h 거래대금(USDT)
-  volume24h: number;    // 24h 거래량
+  change24h: number;    // 24h 등락률 (소수: 0.031 = +3.1%)
+  turnover24h: number;  // 24h 거래대금(USDT 환산)
+  volume24h: number;    // 24h 거래량(기초자산 수량)
 };
 
 const base = CONFIG.BITGET_BASE;
@@ -33,10 +33,7 @@ async function fetchJson(url: URL) {
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(
-      `HTTP ${res.status} ${res.statusText} • ${url.pathname} • ${body.slice(
-        0,
-        120
-      )}`
+      `HTTP ${res.status} ${res.statusText} • ${url.pathname} • ${body.slice(0,120)}`
     );
   }
   return await res.json();
@@ -202,17 +199,20 @@ export async function fetchRecentTrades(
   return [];
 }
 
-/** ===== 랭킹용 티커 ===== */
+/** ===== 랭킹/심볼 ===== */
+
 function num(v: any, d = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : d;
 }
 
+/** 간단 캐시 (API 과호출 방지) */
 const TICKER_CACHE_TTL =
   (CONFIG as any)?.CACHE_TTL_MS ? Number((CONFIG as any).CACHE_TTL_MS) : 60_000;
 let _tickersCache: { at: number; data: Ticker[] } | null = null;
 
-export async function fetchAllTickers(): Promise<Ticker[]> {
+/** v2 USDT-Futures 티커 전체 */
+export async function fetchFuturesTickers(): Promise<Ticker[]> {
   const now = Date.now();
   if (_tickersCache && now - _tickersCache.at < TICKER_CACHE_TTL) {
     return _tickersCache.data;
@@ -220,34 +220,62 @@ export async function fetchAllTickers(): Promise<Ticker[]> {
 
   const url = new URL("/api/v2/mix/market/tickers", base);
   url.searchParams.set("productType", "usdt-futures");
+
   const j: any = await fetchJson(url);
   const rows: any[] = Array.isArray(j?.data) ? j.data : [];
 
-  const out: Ticker[] = rows.map((r: any) => ({
-    symbol: r.symbol,
-    last: num(r.last),
-    change24h: num(r.changeUtc24h, 0),
-    turnover24h: num(r.turnover24h, 0),
-    volume24h: num(r.baseVol24h, 0),
-  }));
+  const list: Ticker[] = rows
+    .map((r: any) => {
+      const sym = String(r.symbol ?? r.instId ?? '').replace('_UMCBL',''); // BTCUSDT
+      const last = num(r.last ?? r.close ?? r.lastPrice ?? r.price);
+      // 등락률: % 또는 소수로 오는 경우 혼재 → %로 들어오면 /100
+      const rawChg = r.change ?? r.changeRatio ?? r.changePct ?? r.changeUtc24h ?? r.pchg;
+      const chg = typeof rawChg === 'string' && rawChg.endsWith('%')
+        ? num(rawChg.replace('%','')) / 100
+        : num(rawChg) / (Math.abs(num(rawChg)) > 1.5 ? 100 : 1);
+      const turnover = num(r.usdVolume ?? r.turnover24h ?? r.turnover ?? r.quoteVolume);
+      const vol = num(r.baseVolume ?? r.volume24h ?? r.volume);
 
-  _tickersCache = { at: now, data: out };
-  return out;
+      return {
+        symbol: sym,
+        last,
+        change24h: chg,
+        turnover24h: turnover,
+        volume24h: vol,
+      } as Ticker;
+    })
+    .filter(t => t.symbol.endsWith('USDT') && Number.isFinite(t.last));
+
+  _tickersCache = { at: now, data: list };
+  return list;
 }
 
-export async function getTopCoinsByVolume(limit = 25): Promise<Ticker[]> {
-  const all = await fetchAllTickers();
-  return all
-    .slice()
-    .sort((a, b) => b.turnover24h - a.turnover24h)
-    .slice(0, limit);
+/** 거래 가능한 선물 심볼 목록 (BTCUSDT 형식) */
+export async function fetchSymbols(): Promise<string[]> {
+  const list = await fetchFuturesTickers();
+  const seen = new Set<string>();
+  const symbols: string[] = [];
+  for (const t of list.sort((a,b) => b.turnover24h - a.turnover24h)) {
+    if (!seen.has(t.symbol)) {
+      seen.add(t.symbol);
+      symbols.push(t.symbol);
+    }
+  }
+  return symbols;
 }
 
-export async function getTopScalpCoins(limit = 10): Promise<Ticker[]> {
-  const all = await fetchAllTickers();
-  return all
-    .filter((t) => Math.abs(t.change24h) > 0.03) // ±3% 이상
-    .slice()
-    .sort((a, b) => b.turnover24h - a.turnover24h)
-    .slice(0, limit);
+/** 상위 25: 24h 거래대금(USDT) 내림차순 */
+export async function top25ByTurnover(): Promise<Ticker[]> {
+  const list = await fetchFuturesTickers();
+  return list.slice().sort((a,b)=> b.turnover24h - a.turnover24h).slice(0,25);
+}
+
+/** 단타 추천 10: |등락률| × sqrt(거래대금) 점수 */
+export async function scalpTop10(): Promise<Ticker[]> {
+  const list = await fetchFuturesTickers();
+  return list
+    .map(t => ({ ...t, _score: Math.abs(t.change24h) * Math.sqrt(Math.max(1, t.turnover24h)) }))
+    .sort((a:any,b:any) => b._score - a._score)
+    .slice(0,10)
+    .map(({ _score, ...rest }: any) => rest as Ticker);
 }
