@@ -38,37 +38,14 @@
 
 ## 📂 Project Structure
 
-src/
- ├── clients/
- │   └── bitget.ts        # Bitget REST API 연동 (캔들, 체결, 티커, 심볼)
- │
- ├── indicators/
- │   ├── calc.ts          # SMA, EMA, 변동성 등 기본 지표
- │   └── cvd.ts           # CVD, Volume Profile 계산
- │
- ├── strategy/
- │   └── signal.ts        # 지표 기반 매매 시그널 결정 (LONG/SHORT/NEUTRAL)
- │
- ├── paper/
- │   ├── store.ts         # Paper Trading 계정/포지션 상태 저장
- │   ├── service.ts       # 주문, 청산, 반전, 초기화 등 가상거래 로직
- │   ├── math.ts          # 수량·PnL 계산 유틸리티
- │   └── ui.ts            # Paper Trading 포트폴리오 Embed UI
- │
- ├── streams/
- │   └── bitget.ts        # Bitget WebSocket 구독 (실시간 가격/체결 데이터)
- │
- ├── ui/
- │   ├── components.ts    # Discord 버튼/드롭다운 UI 컴포넌트
- │   └── embed.ts         # 분석 결과 Embed 메시지
- │
- ├── utils/
- │   └── cache.ts         # TTL Cache (API 과호출 방지)
- │
- ├── commands/
- │   ├── coin.ts          # `!코인` 명령어 처리 (분석 실행)
- │   └── coin-root.ts     # Top25, Scalp10 랭킹 UI 메시지
- │
- ├── router.ts            # Discord 이벤트 라우터 (명령어, 버튼, 셀렉트 처리)
- ├── config.ts            # 환경설정 (API Base URL, 기본 심볼/TF, 캐시/쿨다운)
- └── index.ts             # 엔트리포인트 (Discord Client 초기화 + Router 연결)
+- **clients/bitget.ts** → Bitget REST API 연동 (캔들, 체결, 티커, 심볼)
+- **indicators/** → SMA, EMA, 변동성, CVD 등 지표 계산
+- **strategy/signal.ts** → 매매 시그널 생성
+- **paper/** → Paper Trading 로직 및 UI
+- **streams/bitget.ts** → WebSocket 실시간 데이터 구독
+- **ui/** → Discord Embed & 버튼/드롭다운 UI
+- **utils/cache.ts** → TTL 캐시 (API 과호출 방지)
+- **commands/** → Discord 명령어 처리
+- **router.ts** → 이벤트 라우팅
+- **config.ts** → 환경설정
+- **index.ts** → 진입점 (Client 초기화 + Router 연결)
