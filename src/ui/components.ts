@@ -31,7 +31,7 @@ export const SEL = {
 } as const;
 
 /* ---------------- 공통 버튼 ---------------- */
-export function rowsButtons() {
+export function rowsButtons(): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(BTN.ANALYZE).setLabel('Analyze').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(BTN.LONG).setLabel('Long').setStyle(ButtonStyle.Success),
@@ -41,13 +41,19 @@ export function rowsButtons() {
 }
 
 /* ---------------- 고정 셀렉트(설정 기반) ---------------- */
-export function rowsSelects(symbol: string, tf: string) {
+export function rowsSelects(
+  symbol: string,
+  tf: string
+): [ActionRowBuilder<StringSelectMenuBuilder>, ActionRowBuilder<StringSelectMenuBuilder>] {
   const sym = new StringSelectMenuBuilder()
     .setCustomId(SEL.SYMBOL)
     .setPlaceholder(`심볼(${symbol})`)
     .addOptions(
       CONFIG.SYMBOL_CHOICES.map((s: string) =>
-        new StringSelectMenuOptionBuilder().setLabel(s).setValue(s).setDefault(s === symbol),
+        new StringSelectMenuOptionBuilder()
+          .setLabel(s)
+          .setValue(s)
+          .setDefault(s === symbol),
       ),
     );
 
@@ -56,7 +62,10 @@ export function rowsSelects(symbol: string, tf: string) {
     .setPlaceholder(`타임프레임(${tf})`)
     .addOptions(
       CONFIG.TF_CHOICES.map((t: string) =>
-        new StringSelectMenuOptionBuilder().setLabel(t).setValue(t).setDefault(t === tf),
+        new StringSelectMenuOptionBuilder()
+          .setLabel(t)
+          .setValue(t)
+          .setDefault(t === tf),
       ),
     );
 
@@ -80,8 +89,12 @@ function labelOf(sym: string) {
 }
 
 /** 간단 동시성 제한으로 API 과호출 방지 */
-async function mapWithConcurrency<T, R>(list: T[], limit: number, fn: (x: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(list.length) as any;
+async function mapWithConcurrency<T, R>(
+  list: T[],
+  limit: number,
+  fn: (x: T) => Promise<R>
+): Promise<R[]> {
+  const out: R[] = new Array(list.length) as unknown as R[];
   let idx = 0;
   const workers = new Array(Math.min(limit, list.length)).fill(0).map(async () => {
     while (true) {
@@ -103,7 +116,7 @@ async function enrichTickers(list: Ticker[], take: number) {
     async (s) => (await fetchTicker(s)) || null,
   );
   return base.map((t, i) => {
-    const rt = live[i];
+    const rt = live[i] as any;
     return rt ? { ...t, last: rt.price, change24h: rt.change24h } : t;
   });
 }
@@ -117,7 +130,9 @@ function buildOptions(list: Ticker[]) {
   );
 }
 
-export async function coinSelectMenusDual() {
+export async function coinSelectMenusDual(): Promise<
+  ActionRowBuilder<StringSelectMenuBuilder>[]
+> {
   try {
     // 1) 랭킹 가져오기
     const [topRaw, scalpRaw] = await Promise.all([top25ByTurnover(), scalpTop10()]);
@@ -178,39 +193,48 @@ export const PAPER_SEL = {
 } as const;
 
 // --- 가상선물 버튼행 ---
-export function rowPaperButtons(enabled = true) {
+export function rowPaperButtons(enabled = true): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId(PAPER_BTN.TOGGLE).setLabel(enabled ? 'Paper: ON' : 'Paper: OFF')
+    new ButtonBuilder().setCustomId(PAPER_BTN.TOGGLE).setLabel(enabled ? '가상선물거래: ON' : '가상선물거래: OFF')
       .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(PAPER_BTN.LONG).setLabel('Long').setStyle(ButtonStyle.Primary).setDisabled(!enabled),
-    new ButtonBuilder().setCustomId(PAPER_BTN.SHORT).setLabel('Short').setStyle(ButtonStyle.Danger).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.LONG).setLabel('롱').setStyle(ButtonStyle.Primary).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.SHORT).setLabel('숏').setStyle(ButtonStyle.Danger).setDisabled(!enabled),
     new ButtonBuilder().setCustomId(PAPER_BTN.CLOSE).setLabel('Close').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
     new ButtonBuilder().setCustomId(PAPER_BTN.FLIP).setLabel('Flip').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
   );
 }
 
-export function rowPaperMgmt(enabled = true) {
+export function rowPaperMgmt(enabled = true): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(PAPER_BTN.PORT).setLabel('Portfolio').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(PAPER_BTN.CURR).setLabel('USD ↔ KRW').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(PAPER_BTN.RESET).setLabel('Reset').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
-    new ButtonBuilder().setCustomId(PAPER_BTN.REFRESH).setLabel('Refresh PnL').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(PAPER_BTN.RESET).setLabel('초기화').setStyle(ButtonStyle.Secondary).setDisabled(!enabled),
+    new ButtonBuilder().setCustomId(PAPER_BTN.REFRESH).setLabel('실시간 새로고침').setStyle(ButtonStyle.Secondary),
   );
 }
 
-export function rowPaperSelects(currentAmt = 100, currentLev = 5) {
+export function rowPaperSelects(
+  currentAmt = 100,
+  currentLev = 5
+): [ActionRowBuilder<StringSelectMenuBuilder>, ActionRowBuilder<StringSelectMenuBuilder>] {
   const amount = new StringSelectMenuBuilder()
     .setCustomId(PAPER_SEL.AMOUNT)
     .setPlaceholder(`금액(USD) · 현재 ${currentAmt}`)
-    .addOptions([25,50,100,250,500,1000,2000].map(v =>
-      new StringSelectMenuOptionBuilder().setLabel(`$${v}`).setValue(String(v)).setDefault(v===currentAmt)
+    .addOptions([25, 50, 100, 250, 500, 1000, 2000].map(v =>
+      new StringSelectMenuOptionBuilder()
+        .setLabel(`$${v}`)
+        .setValue(String(v))
+        .setDefault(v === currentAmt),
     ));
 
   const lev = new StringSelectMenuBuilder()
     .setCustomId(PAPER_SEL.LEV)
     .setPlaceholder(`레버리지 · 현재 ${currentLev}x`)
-    .addOptions([1,2,3,5,10,15,20,30,50].map(v =>
-      new StringSelectMenuOptionBuilder().setLabel(`${v}x`).setValue(String(v)).setDefault(v===currentLev)
+    .addOptions([1, 2, 3, 5, 10, 15, 20, 30, 50].map(v =>
+      new StringSelectMenuOptionBuilder()
+        .setLabel(`${v}x`)
+        .setValue(String(v))
+        .setDefault(v === currentLev),
     ));
 
   return [
