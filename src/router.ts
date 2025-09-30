@@ -22,18 +22,14 @@ import { BTN, SEL, rowsButtons, rowsSelects } from './ui/components.js';
 
 // Paper Trading UI & 서비스
 import {
-  PAPER_BTN,
-  rowPaperButtons,
-  rowPaperMgmt,
+  PAPER_BTN, PAPER_SEL,
+  rowPaperButtons, rowPaperMgmt, rowPaperSelects
 } from './ui/components.js';
 import { getAccount } from './paper/store.js';
 import {
-  placePaperOrder,
-  closePaperPosition,
-  flipPaperPosition,
-  toggleCurrency,
-  toggleEnabled,
-  resetPaper,
+  placePaperOrder, closePaperPosition, flipPaperPosition,
+  setPaperAmount, setPaperLeverage, toggleCurrency,
+  toggleEnabled, resetPaper
 } from './paper/service.js';
 import { buildPortfolioEmbed } from './paper/ui.js';
 
@@ -51,15 +47,13 @@ export function initRouter(client: Client) {
         await msg.reply('❌ 서버(길드) 내에서만 사용할 수 있습니다.');
         return;
       }
-      // 랭킹 참여자 트래킹 (메시지 보낸 유저도 등록)
       trackGuildUser(msg.guild.id, msg.author.id);
-
-      const embed = buildRankingEmbed(msg.guild, 10); // TOP 10
+      const embed = buildRankingEmbed(msg.guild, 10);
       await msg.reply({ embeds: [embed] });
       return;
     }
 
-    // 🧹 채널 메시지 비우기 (최근 메시지 일괄 삭제; 14일 제한)
+    // 🧹 채널 메시지 비우기
     if (msg.content.trim() === '!채널메세지비우기') {
       try {
         const member = msg.member;
@@ -75,11 +69,10 @@ export function initRouter(client: Client) {
         const channel = msg.channel as TextChannel;
         let totalDeleted = 0;
 
-        // 100개씩 반복 삭제 (14일 초과 메시지는 삭제 불가)
         while (true) {
           const fetched = await channel.messages.fetch({ limit: 100 });
           if (fetched.size === 0) break;
-          const deleted = await channel.bulkDelete(fetched, true); // true: 14일 초과 자동 제외
+          const deleted = await channel.bulkDelete(fetched, true);
           totalDeleted += deleted.size;
           if (fetched.size < 100) break;
         }
@@ -96,30 +89,24 @@ export function initRouter(client: Client) {
       return;
     }
 
-    // !코인 명령 처리
+    // !코인
     if (!msg.content.startsWith('!코인')) return;
 
-    // 서버 참여자 트래킹
     if (msg.guild) trackGuildUser(msg.guild.id, msg.author.id);
 
     const parts = msg.content.trim().split(/\s+/);
     const symbol = parts[1] || CONFIG.DEFAULT_SYMBOL;
     const tf     = parts[2] || CONFIG.DEFAULT_TF;
 
-    // 1) 기본 분석 메시지
-    await handleCoinCommand(msg, symbol, tf);
-
-    // 2) 상위25/단타10 드롭다운(보조 메시지로 별도 전송)
-    await handleCoinRoot(msg);
+    await handleCoinCommand(msg, symbol, tf); // 메인 메시지(5행 제한 내)
+    await handleCoinRoot(msg);                // 랭킹 드롭다운 보조 메시지
   });
 
   /* ========== 상호작용(버튼/셀렉트) ========== */
   client.on('interactionCreate', async (i) => {
     try {
-      // 🔸 모든 상호작용 → 서버 참여자 기록
-      if (i.guildId && i.user?.id) {
-        trackGuildUser(i.guildId, i.user.id);
-      }
+      // 모든 상호작용 → 서버 참여자 기록
+      if (i.guildId && i.user?.id) trackGuildUser(i.guildId, i.user.id);
 
       /* ----- 기본 분석 버튼 ----- */
       if (i.isButton() && (i.customId === BTN.ANALYZE || i.customId === BTN.REFRESH)) {
@@ -166,8 +153,8 @@ export function initRouter(client: Client) {
       /* ----- Paper 버튼 ----- */
       if (i.isButton() && (Object.values(PAPER_BTN) as string[]).includes(i.customId)) {
         const m = i.message.embeds?.[0]?.title?.match(/📊 (.+) · (.+) 신호/);
-        const symbol = (m?.[1] || CONFIG.DEFAULT_SYMBOL);
-        const userId = i.user.id;
+        const symbol  = (m?.[1] || CONFIG.DEFAULT_SYMBOL);
+        const userId  = i.user.id;
         const guildId = i.guildId ?? 'global';
 
         try {
@@ -182,8 +169,7 @@ export function initRouter(client: Client) {
               const e = await buildPortfolioEmbed(guildId, userId);
               await i.reply({
                 content: `✅ LONG 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`,
-                embeds: [e],
-                ephemeral: true,
+                embeds: [e], ephemeral: true
               });
               break;
             }
@@ -192,8 +178,7 @@ export function initRouter(client: Client) {
               const e = await buildPortfolioEmbed(guildId, userId);
               await i.reply({
                 content: `✅ SHORT 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`,
-                embeds: [e],
-                ephemeral: true,
+                embeds: [e], ephemeral: true
               });
               break;
             }
@@ -202,8 +187,7 @@ export function initRouter(client: Client) {
               const e = await buildPortfolioEmbed(guildId, userId);
               await i.reply({
                 content: `🔚 포지션 청산 • ${symbol} @ ${price.toFixed(4)} · PnL ${pnl.toFixed(2)} USD`,
-                embeds: [e],
-                ephemeral: true,
+                embeds: [e], ephemeral: true
               });
               break;
             }
@@ -226,6 +210,7 @@ export function initRouter(client: Client) {
                 components: [
                   rowPaperButtons(acc.enabled),
                   rowPaperMgmt(acc.enabled),
+                  ...rowPaperSelects(acc.orderAmountUSD, acc.leverage), // 금액/레버리지 조정
                 ],
                 ephemeral: true,
               });
@@ -243,8 +228,41 @@ export function initRouter(client: Client) {
         return;
       }
 
-      /* ----- 셀렉트(심볼/TF/랭킹) ----- */
+      /* ----- 셀렉트(심볼/TF/랭킹/페이퍼설정) ----- */
       if (i.isStringSelectMenu()) {
+        // 페이퍼 설정(금액/레버리지) 셀렉트는 에페메럴로 처리
+        if (i.customId === PAPER_SEL.AMOUNT || i.customId === PAPER_SEL.LEV) {
+          const guildId = i.guildId ?? 'global';
+          const userId  = i.user.id;
+
+          try {
+            if (i.customId === PAPER_SEL.AMOUNT) {
+              const v = Number(i.values[0]);
+              setPaperAmount(guildId, userId, v);
+            } else {
+              const v = Number(i.values[0]);
+              setPaperLeverage(guildId, userId, v);
+            }
+            const acc = getAccount(guildId, userId);
+            const e   = await buildPortfolioEmbed(guildId, userId);
+
+            await i.reply({
+              content: `✅ 설정 반영됨`,
+              embeds: [e],
+              components: [
+                rowPaperButtons(acc.enabled),
+                rowPaperMgmt(acc.enabled),
+                ...rowPaperSelects(acc.orderAmountUSD, acc.leverage),
+              ],
+              ephemeral: true,
+            });
+          } catch (e: any) {
+            await i.reply({ content: `⚠️ ${e?.message || '오류'}`, ephemeral: true });
+          }
+          return;
+        }
+
+        // 메인 분석 심볼/TF/랭킹 셀렉트
         let [symbol, tf] = (() => {
           const m = i.message.embeds?.[0]?.title?.match(/📊 (.+) · (.+) 신호/);
           return [m?.[1] || CONFIG.DEFAULT_SYMBOL, m?.[2] || CONFIG.DEFAULT_TF];
@@ -252,8 +270,8 @@ export function initRouter(client: Client) {
 
         if (i.customId === SEL.SYMBOL) symbol = i.values[0];
         if (i.customId === SEL.TF)     tf     = i.values[0];
-        if ((SEL as any).TOP25 && i.customId === (SEL as any).TOP25) symbol = i.values[0];
-        if (i.customId === (SEL as any).SCALP10) symbol = i.values[0];
+        if ((SEL as any).TOP25  && i.customId === (SEL as any).TOP25)   symbol = i.values[0];
+        if ((SEL as any).SCALP10 && i.customId === (SEL as any).SCALP10) symbol = i.values[0];
 
         await i.deferUpdate();
 
