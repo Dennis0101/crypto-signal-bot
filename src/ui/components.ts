@@ -134,9 +134,7 @@ export async function coinSelectMenusDual(): Promise<
   ActionRowBuilder<StringSelectMenuBuilder>[]
 > {
   try {
-    // 1) 랭킹 가져오기
     const [topRaw, scalpRaw] = await Promise.all([top25ByTurnover(), scalpTop10()]);
-    // 2) 실시간 가격으로 보정 (0.0000 이슈 해결)
     const [top, scalp] = await Promise.all([
       enrichTickers(topRaw, 25),
       enrichTickers(scalpRaw, 10),
@@ -157,7 +155,6 @@ export async function coinSelectMenusDual(): Promise<
       new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menuScalp),
     ];
   } catch {
-    // Bitget 실패 시 폴백: CONFIG 리스트
     const list = (CONFIG.SYMBOL_CHOICES ?? []).slice(0, 25);
     const opts = list.map((s: string) =>
       new StringSelectMenuOptionBuilder().setLabel(labelOf(s)).setDescription(`${s}`).setValue(s),
@@ -174,7 +171,6 @@ export async function coinSelectMenusDual(): Promise<
 
 /* ====================== 가상 선물(Paper) UI ====================== */
 
-// --- 추가 상수 ---
 export const PAPER_BTN = {
   TOGGLE: 'paper_toggle',  // 활성/비활성
   LONG: 'paper_long',
@@ -192,7 +188,6 @@ export const PAPER_SEL = {
   LEV: 'paper_lev'         // 레버리지
 } as const;
 
-// --- 가상선물 버튼행 ---
 export function rowPaperButtons(enabled = true): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(PAPER_BTN.TOGGLE).setLabel(enabled ? '가상선물거래: ON' : '가상선물거래: OFF')
@@ -213,19 +208,39 @@ export function rowPaperMgmt(enabled = true): ActionRowBuilder<ButtonBuilder> {
   );
 }
 
+/**
+ * 주문 금액/레버리지 셀렉트
+ * - 기본 후보: 100, 250, 500, 1,000, 2,000, 5,000, 10,000 USD
+ * - CONFIG.PAPER.ORDER.MIN/MAX 가 있으면 그 범위 내로 자동 필터
+ * - 현재값이 후보에 없으면 자동 추가하여 "현재값" 체크가 유지됨
+ */
 export function rowPaperSelects(
   currentAmt = 100,
   currentLev = 5
 ): [ActionRowBuilder<StringSelectMenuBuilder>, ActionRowBuilder<StringSelectMenuBuilder>] {
+  const orderCfg = (CONFIG as any)?.PAPER?.ORDER ?? { MIN: 100, MAX: 10_000 };
+
+  // 후보 생성 및 범위 필터
+  const baseCandidates = [100, 250, 500, 1_000, 2_000, 5_000, 10_000];
+  let candidates = baseCandidates.filter(v => v >= orderCfg.MIN && v <= orderCfg.MAX);
+
+  // 현재값 보존
+  if (!candidates.includes(currentAmt)) {
+    candidates.push(currentAmt);
+    candidates = candidates.sort((a, b) => a - b);
+  }
+
   const amount = new StringSelectMenuBuilder()
     .setCustomId(PAPER_SEL.AMOUNT)
-    .setPlaceholder(`금액(USD) · 현재 ${currentAmt}`)
-    .addOptions([25, 50, 100, 250, 500, 1000, 2000].map(v =>
-      new StringSelectMenuOptionBuilder()
-        .setLabel(`$${v}`)
-        .setValue(String(v))
-        .setDefault(v === currentAmt),
-    ));
+    .setPlaceholder(`금액(USD) · 현재 ${currentAmt.toLocaleString()}`)
+    .addOptions(
+      candidates.map(v =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(`$${v.toLocaleString()}`)
+          .setValue(String(v))
+          .setDefault(v === currentAmt),
+      ),
+    );
 
   const lev = new StringSelectMenuBuilder()
     .setCustomId(PAPER_SEL.LEV)
