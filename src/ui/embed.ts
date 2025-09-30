@@ -4,17 +4,23 @@ import type { BaseFeatures } from '../indicators/calc.js';
 
 type FinalDecision = {
   recommend: 'LONG' | 'SHORT' | 'NEUTRAL';
-  confidence: number;
+  confidence: number; // 0 ~ 1
   reasons: string[];
   rationale: string;
   levels: { entry: number; stop: number; take_profit: number };
   risk: string;
   source?: 'LLM' | 'RULE' | 'HYBRID';
+  // 🔥 옵션: 실시간 평가 데이터 추가
+  pnlUSD?: number;   // 현재 포지션 기준 수익/손실
+  roiPct?: number;   // 수익률 %
 };
 
 function fmt(n: unknown, d = 4) {
   const x = Number(n);
   return Number.isFinite(x) ? x.toFixed(d) : '-';
+}
+function pct(n: number | undefined) {
+  return Number.isFinite(n ?? NaN) ? `${(n! * 100).toFixed(2)}%` : '-';
 }
 
 function colorFor(rec: FinalDecision['recommend']) {
@@ -41,7 +47,7 @@ export function buildEmbed(
       : '규칙/데이터 기준으로 특이 신호 없음';
 
   const descLines = [
-    `**추천**: ${rec} | **신뢰도**: ${conf}`,
+    `**추천**: ${rec} | **신뢰도**: ${(conf * 100).toFixed(1)}%`,
     decision.rationale?.trim() ? decision.rationale.trim() : '',
     decision.source ? `(_source: ${decision.source}_)` : ''
   ].filter(Boolean);
@@ -52,7 +58,7 @@ export function buildEmbed(
     .setDescription(descLines.join('\n'))
     .addFields(
       {
-        name: '가격/지표',
+        name: '📈 가격/지표',
         value:
           `현재가: ${fmt(f.last)}\n` +
           `EMA20 / EMA50: ${fmt(f.e20)} / ${fmt(f.e50)}\n` +
@@ -60,7 +66,7 @@ export function buildEmbed(
         inline: false
       },
       {
-        name: '레벨(참고)',
+        name: '🎯 레벨(참고)',
         value:
           `진입: ${fmt(decision.levels?.entry)}\n` +
           `손절: ${fmt(decision.levels?.stop)}\n` +
@@ -68,22 +74,36 @@ export function buildEmbed(
         inline: true
       },
       {
-        name: 'CVD 요약',
+        name: '📊 CVD 요약',
         value: `최근 CVD: ${fmt(cvdInfo.cvdNow, 0)} (${cvdInfo.cvdUp ? '상방' : '하방/중립'})`,
         inline: true
       },
       {
-        name: '볼륨 상위',
+        name: '🏦 볼륨 상위',
         value: profileTop || '데이터 부족',
         inline: false
       },
       {
-        name: '추천 이유',
+        name: '📝 추천 이유',
         value: reasons,
         inline: false
       }
-    )
-    .setFooter({ text: `📉코인 선물거래📈 (AI 분석봇📊) · 주문 비활성❌(기본)· 👨‍💻개발자 : LEE GUN ${decision.risk ? ` · 리스크: ${decision.risk}` : ''}` });
+    );
+
+  // 🔥 수익률/손익 표시 추가
+  if (decision.pnlUSD !== undefined || decision.roiPct !== undefined) {
+    embed.addFields({
+      name: '💰 실시간 성과',
+      value:
+        `PnL: ${decision.pnlUSD ? `$${decision.pnlUSD.toFixed(2)}` : '-'}\n` +
+        `ROI: ${decision.roiPct ? pct(decision.roiPct) : '-'}`,
+      inline: false
+    });
+  }
+
+  embed.setFooter({
+    text: `📉코인 선물거래 AI봇 · 리스크: ${decision.risk || 'N/A'} · 개발자: LEE GUN`
+  });
 
   return embed;
 }
