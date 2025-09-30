@@ -1,5 +1,5 @@
 // src/router.ts
-import { Client, Message } from 'discord.js';
+import { Client, Message, TextChannel, PermissionsBitField } from 'discord.js';
 import { CONFIG } from './config.js';
 
 // 분석 파이프라인
@@ -31,6 +31,43 @@ export function initRouter(client: Client) {
   /* ========== 텍스트 명령어 ========== */
   client.on('messageCreate', async (msg: Message) => {
     if (msg.author.bot) return;
+
+    // 🧹 채널 메시지 비우기 (최근 메시지 일괄 삭제; 14일 제한 적용)
+    if (msg.content.trim() === '!채널메세지비우기') {
+      try {
+        const member = msg.member;
+        if (!member?.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+          await msg.reply('❌ 메세지 관리 권한이 없습니다.');
+          return;
+        }
+        if (!msg.channel.isTextBased()) {
+          await msg.reply('❌ 텍스트 채널에서만 사용 가능합니다.');
+          return;
+        }
+
+        const channel = msg.channel as TextChannel;
+        let totalDeleted = 0;
+
+        // 100개씩 반복 삭제 (14일 초과 메시지는 삭제 불가)
+        while (true) {
+          const fetched = await channel.messages.fetch({ limit: 100 });
+          if (fetched.size === 0) break;
+          const deleted = await channel.bulkDelete(fetched, true); // true: 14일 초과 자동 제외
+          totalDeleted += deleted.size;
+          if (fetched.size < 100) break;
+        }
+
+        await channel.send(`✅ ${totalDeleted}개의 메시지를 삭제했습니다. (최근 메시지만 삭제 가능)`);
+      } catch (e) {
+        console.error('채널메세지비우기 오류:', e);
+        if (msg.channel.isTextBased()) {
+          await msg.channel.send('⚠️ 메시지 삭제 중 오류가 발생했습니다.');
+        }
+      }
+      return;
+    }
+
+    // 코인 명령 처리
     if (!msg.content.startsWith('!코인')) return;
 
     const parts = msg.content.trim().split(/\s+/);
@@ -177,9 +214,8 @@ export function initRouter(client: Client) {
 
         if (i.customId === SEL.SYMBOL) symbol = i.values[0];
         if (i.customId === SEL.TF)     tf     = i.values[0];
-        if (i.customId === SEL.TOP25 || i.customId === SEL.SCALP10) {
-          symbol = i.values[0];
-        }
+        if ((SEL as any).TOP25 && i.customId === (SEL as any).TOP25) symbol = i.values[0];
+        if ((SEL as any).SCALP10 && i.customId === (SEL as any).SCALP10) symbol = i.values[0];
 
         await i.deferUpdate();
 
