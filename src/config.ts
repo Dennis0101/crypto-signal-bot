@@ -25,7 +25,7 @@ export const CONFIG = {
 
   // ===== 페이퍼 트레이딩(가상 선물거래) =====
   PAPER: {
-    DEFAULT_EQUITY_USD: 1000,   // 기본 가상자본(USD)
+    DEFAULT_EQUITY_USD: 100_000,   // 기본 가상자본(USD)
     DEFAULT_LEVERAGE: 5,        // 기본 레버리지
     MAX_LEVERAGE: 50,           // 상한
     FX_USDKRW: Number(process.env.FX_USDKRW || 1400), // 원화 환산 비율
