@@ -21,11 +21,13 @@ export function toggleCurrency(userId: string): 'USD' | 'KRW' {
 }
 
 export function setPaperAmount(userId: string, usd: number): number {
+  if (!isFinite(usd) || usd <= 0) throw new Error('금액은 0보다 커야 함');
   setOrderAmount(userId, usd);
   return getAccount(userId).orderAmountUSD;
 }
 
 export function setPaperLeverage(userId: string, lev: number): number {
+  if (!isFinite(lev) || lev <= 0) throw new Error('레버리지는 0보다 커야 함');
   setLeverage(userId, lev);
   return getAccount(userId).leverage;
 }
@@ -43,12 +45,14 @@ export async function placePaperOrder(
   const acc = getAccount(userId);
   if (!acc.enabled) throw new Error('Paper OFF');
 
-  // ⬇️ 안전 현재가 사용 (내부적으로 여러 소스/재시도 가능)
+  // ✅ 안전 현재가
   const price = await getSafePrice(symbol);
   if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
-  const lev = acc.leverage;
+  const lev = Math.max(1, acc.leverage);
   const qty = qtyFromNotionalUSD(acc.orderAmountUSD, price, lev);
+
+  if (qty <= 0) throw new Error('수량이 0 이하');
 
   const ex = getPosition(userId, symbol);
   if (ex) {
@@ -80,7 +84,6 @@ export async function closePaperPosition(
   const pos = getPosition(userId, symbol);
   if (!pos) throw new Error('포지션 없음');
 
-  // ⬇️ 안전 현재가 사용
   const price = await getSafePrice(symbol);
   if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
@@ -94,6 +97,7 @@ export async function closePaperPosition(
 export async function flipPaperPosition(userId: string, symbol: string) {
   const pos = getPosition(userId, symbol);
   if (!pos) throw new Error('포지션 없음');
+
   await closePaperPosition(userId, symbol);
   const newSide: Side = pos.side === 'LONG' ? 'SHORT' : 'LONG';
   return placePaperOrder(userId, symbol, newSide);
