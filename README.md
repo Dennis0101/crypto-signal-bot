@@ -1,42 +1,54 @@
-# 📊 Discord Crypto Analysis Bot
+# 📊 Bitget Futures Discord Bot
 
-Bitget 선물 데이터를 기반으로 **실시간 코인 분석, 신호 제공, 거래대금 랭킹/단타 추천**을 지원하는 디스코드 봇입니다.  
-UI는 버튼 + 드롭다운 셀렉터로 구성되어 있으며, 실시간 가격/변동률까지 표시됩니다.
-
----
-
-## 🚀 기능 소개
-
-### 🔎 주요 기능
-- `!코인 [심볼] [타임프레임]` → 실시간 분석 실행
-- 버튼 인터랙션:
-  - **Analyze**: 최신 데이터로 다시 분석
-  - **Long / Short**: 매수/매도 선택(실제 주문 미체결, 시뮬레이션 알림만)
-  - **Refresh**: 최신 데이터 갱신
-- 드롭다운 인터랙션:
-  - **심볼 선택**: BTCUSDT, ETHUSDT 등
-  - **타임프레임 선택**: 1m / 5m / 15m / 1h / 4h
-  - **🏆 상위 25위 (24h 거래대금 기준)**
-  - **⚡ 단타 추천 10 (변동성 우선)**
-
-### 📊 분석 지표
-- **캔들 데이터 (OHLCV)**  
-- **최근 체결 데이터 기반 CVD (Cumulative Volume Delta)**  
-- **Volume Profile** (주요 거래대금 가격대 Top3)  
-- **자동 신호 생성 (decide)**: Long / Short / Neutral  
+> **Bitget 선물 데이터 분석 + Paper Trading 지원 Discord Bot**  
+> 실시간 시세 분석, CVD & 볼륨 프로파일 계산, 가상거래(Paper Trading) 기능을 모두 제공합니다.
 
 ---
 
-## 🖼️ UI 예시
+## ✨ Features
 
-![Bot UI Example](https://cdn.discordapp.com/attachments/1413350627936833637/1421668008144932865/IMG_8078.png)
+### 📈 실시간 분석
+- Bitget API 기반 **시세, 캔들, 체결 데이터 조회**
+- **CVD (Cumulative Volume Delta)** 및 **Volume Profile** 계산
+- 매매 **시그널 자동 결정 (LONG / SHORT / NEUTRAL)**
+
+### 🎛️ 인터랙션 UI
+- **버튼**
+  - 📊 분석 새로고침
+  - ▶️ Paper Trading 주문 (롱/숏/청산/반전)
+  - 🧹 초기화, 💱 통화 전환(USD ↔ KRW)
+- **셀렉트 메뉴**
+  - 심볼 선택 (BTCUSDT, ETHUSDT 등)
+  - 타임프레임 선택 (1m, 5m, 15m, 1h, 4h)
+  - Top25 / Scalp10 종목 빠른 접근
+
+### 💵 Paper Trading
+- 가상 **계정/포지션 관리**
+- 시장가 체결 (롱/숏)
+- **평균가 갱신, 포지션 반전, 청산**
+- 손익(PnL) 자동 반영 → Equity 업데이트
+- 주문 금액, 레버리지, 표시 통화 설정 가능
+
+### 🛠️ Utilities
+- **TTL 캐시** → Bitget API 과호출 방지
+- **안전 가격 조회 (Safe Price)** → 시세 조회 실패 대비
+- **쿨다운(Cooldown)** → 동일 채널 과도한 명령 방지
 
 ---
 
-## ⚙️ 설치 및 실행 방법
- Railway 에서 배포 했습니다 .
-### 1️⃣ 환경 설정
-```bash
-git clone https://github.com/yourname/crypto-discord-bot.git
-cd crypto-discord-bot
-npm install
+## 📂 Project Structure
+
+src/
+ ├── clients/bitget.ts        # Bitget REST API 클라이언트 (시세/캔들/체결 등)
+ ├── indicators/              # CVD, 기본 지표 계산 로직
+ ├── strategy/                # 매매 시그널 결정 로직
+ ├── paper/                   # Paper Trading (가상 선물 거래)
+ │    ├── store.ts            # 유저별 계정/포지션 저장소
+ │    ├── service.ts          # 포지션 체결/청산/반전 로직
+ ├── streams/bitget.ts        # 실시간 구독 처리 (웹소켓)
+ ├── ui/
+ │    ├── components.ts       # 버튼 / 셀렉트 메뉴 UI
+ │    ├── embed.ts            # 디스코드 임베드 메시지
+ ├── utils/cache.ts           # TTL 캐시
+ ├── router.ts                # 명령어 라우팅
+ └── config.ts                # 환경설정 (API base, 기본 심볼/TF 등)
