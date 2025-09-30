@@ -94,7 +94,9 @@ export async function handleCoinCommand(msg: Message, symbolArg?: string, tfArg?
 
     // --- UI (초기 메시지에 Paper 버튼 포함) ---
     const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
-    const acc = getAccount(msg.author.id);
+
+    // 🔧 변경: 서버별 스토어이므로 guildId 필요 (DM은 'dm'로 묶음)
+    const acc = getAccount(msg.guildId ?? 'dm', msg.author.id);
 
     const sent = await loading.edit({
       embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
