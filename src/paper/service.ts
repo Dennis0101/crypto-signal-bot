@@ -5,100 +5,86 @@ import {
   resetAccount, type Side
 } from './store.js';
 import { qtyFromNotionalUSD, unrealizedPnlUSD } from './math.js';
-// ✅ 안전 현재가 헬퍼
 import { getSafePrice } from './price.js';
 
-export function toggleEnabled(userId: string): boolean {
-  const acc = getAccount(userId);
+export function toggleEnabled(userId: string, guildId?: string): boolean {
+  const acc = getAccount(userId, guildId);
   acc.enabled = !acc.enabled;
   return acc.enabled;
 }
 
-export function toggleCurrency(userId: string): 'USD' | 'KRW' {
-  const acc = getAccount(userId);
+export function toggleCurrency(userId: string, guildId?: string): 'USD' | 'KRW' {
+  const acc = getAccount(userId, guildId);
   acc.currency = acc.currency === 'USD' ? 'KRW' : 'USD';
   return acc.currency;
 }
 
-export function setPaperAmount(userId: string, usd: number): number {
-  if (!isFinite(usd) || usd <= 0) throw new Error('금액은 0보다 커야 함');
-  setOrderAmount(userId, usd);
-  return getAccount(userId).orderAmountUSD;
+export function setPaperAmount(userId: string, usd: number, guildId?: string): number {
+  return setOrderAmount(userId, usd, guildId);
 }
 
-export function setPaperLeverage(userId: string, lev: number): number {
-  if (!isFinite(lev) || lev <= 0) throw new Error('레버리지는 0보다 커야 함');
-  setLeverage(userId, lev);
-  return getAccount(userId).leverage;
+export function setPaperLeverage(userId: string, lev: number, guildId?: string): number {
+  return setLeverage(userId, lev, guildId);
 }
 
-export function resetPaper(userId: string) {
-  resetAccount(userId);
+export function resetPaper(userId: string, guildId?: string) {
+  resetAccount(userId, guildId);
 }
 
-/** 시장가 체결(가상) */
 export async function placePaperOrder(
   userId: string,
   symbol: string,
-  side: Side
+  side: Side,
+  guildId?: string
 ): Promise<{ price: number; qty: number; lev: number }> {
-  const acc = getAccount(userId);
+  const acc = getAccount(userId, guildId);
   if (!acc.enabled) throw new Error('Paper OFF');
 
-  // ✅ 안전 현재가
   const price = await getSafePrice(symbol);
   if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
-  const lev = Math.max(1, acc.leverage);
+  const lev = acc.leverage;
   const qty = qtyFromNotionalUSD(acc.orderAmountUSD, price, lev);
 
-  if (qty <= 0) throw new Error('수량이 0 이하');
-
-  const ex = getPosition(userId, symbol);
+  const ex = getPosition(userId, symbol, guildId);
   if (ex) {
     if (ex.side === side) {
-      // 동일 방향 → 가중 평균가 갱신
       const notionalOld = ex.entry * ex.qty;
       const notionalNew = price * qty;
       const qtySum = ex.qty + qty;
       const entryNew = qtySum > 0 ? (notionalOld + notionalNew) / qtySum : price;
-      upsertPosition(userId, { ...ex, entry: entryNew, qty: qtySum, lev });
+      upsertPosition(userId, { ...ex, entry: entryNew, qty: qtySum, lev }, guildId);
       return { price, qty, lev };
     } else {
-      // 반대 포지션 보유 → 기존 청산 후 새 포지션
-      await closePaperPosition(userId, symbol);
+      await closePaperPosition(userId, symbol, guildId);
     }
   }
 
-  upsertPosition(userId, {
-    symbol, side, entry: price, qty, lev, openedAt: Date.now(),
-  });
+  upsertPosition(userId, { symbol, side, entry: price, qty, lev, openedAt: Date.now() }, guildId);
   return { price, qty, lev };
 }
 
-/** 청산 */
 export async function closePaperPosition(
   userId: string,
-  symbol: string
+  symbol: string,
+  guildId?: string
 ): Promise<{ price: number; pnl: number }> {
-  const pos = getPosition(userId, symbol);
+  const pos = getPosition(userId, symbol, guildId);
   if (!pos) throw new Error('포지션 없음');
 
   const price = await getSafePrice(symbol);
   if (!isFinite(price)) throw new Error('현재가 조회 실패');
 
   const pnl = unrealizedPnlUSD(pos.side, pos.entry, price, pos.qty);
-  addEquity(userId, pnl);
-  removePosition(userId, symbol);
+  addEquity(userId, pnl, guildId);
+  removePosition(userId, symbol, guildId);
   return { price, pnl };
 }
 
-/** 반전 */
-export async function flipPaperPosition(userId: string, symbol: string) {
-  const pos = getPosition(userId, symbol);
+export async function flipPaperPosition(userId: string, symbol: string, guildId?: string) {
+  const pos = getPosition(userId, symbol, guildId);
   if (!pos) throw new Error('포지션 없음');
-
-  await closePaperPosition(userId, symbol);
+  await closePaperPosition(userId, symbol, guildId);
   const newSide: Side = pos.side === 'LONG' ? 'SHORT' : 'LONG';
-  return placePaperOrder(userId, symbol, newSide);
+  return placePaperOrder(userId, symbol, newSide, guildId);
 }
