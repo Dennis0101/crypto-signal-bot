@@ -22,16 +22,23 @@ import { BTN, SEL, rowsButtons, rowsSelects } from './ui/components.js';
 
 // Paper Trading UI & 서비스
 import {
-  PAPER_BTN, PAPER_SEL,
-  rowPaperButtons, rowPaperMgmt, rowPaperSelects,
+  PAPER_BTN,
+  rowPaperButtons,
+  rowPaperMgmt,
 } from './ui/components.js';
 import { getAccount } from './paper/store.js';
 import {
-  placePaperOrder, closePaperPosition, flipPaperPosition,
-  setPaperAmount, setPaperLeverage, toggleCurrency,
-  toggleEnabled, resetPaper,
+  placePaperOrder,
+  closePaperPosition,
+  flipPaperPosition,
+  toggleCurrency,
+  toggleEnabled,
+  resetPaper,
 } from './paper/service.js';
 import { buildPortfolioEmbed } from './paper/ui.js';
+
+// 🔥 랭킹
+import { trackGuildUser, buildRankingEmbed } from './paper/ranking.js';
 
 export function initRouter(client: Client) {
   /* ========== 텍스트 명령어 ========== */
@@ -54,10 +61,11 @@ export function initRouter(client: Client) {
         const channel = msg.channel as TextChannel;
         let totalDeleted = 0;
 
+        // 100개씩 반복 삭제 (14일 초과 메시지는 삭제 불가)
         while (true) {
           const fetched = await channel.messages.fetch({ limit: 100 });
           if (fetched.size === 0) break;
-          const deleted = await channel.bulkDelete(fetched, true); // 14일 초과 자동 제외
+          const deleted = await channel.bulkDelete(fetched, true); // true: 14일 초과 자동 제외
           totalDeleted += deleted.size;
           if (fetched.size < 100) break;
         }
@@ -74,28 +82,45 @@ export function initRouter(client: Client) {
       return;
     }
 
-    // 코인 분석 명령
+    // 🏆 서버 랭킹
+    if (msg.content.trim() === '!랭킹') {
+      if (!msg.guild) {
+        await msg.reply('❌ 이 명령은 서버에서만 사용 가능합니다.');
+        return;
+      }
+      const embed = buildRankingEmbed(msg.guild, 10);
+      await msg.channel.send({ embeds: [embed] });
+      return;
+    }
+
+    // 코인 명령 처리
     if (!msg.content.startsWith('!코인')) return;
 
     const parts = msg.content.trim().split(/\s+/);
     const symbol = parts[1] || CONFIG.DEFAULT_SYMBOL;
-    const tf     = parts[2] || CONFIG.DEFAULT_TF;
+    const tf = parts[2] || CONFIG.DEFAULT_TF;
+
+    // 서버 트래킹
+    trackGuildUser(msg.guild?.id, msg.author.id);
 
     // 1) 기본 분석 메시지
     await handleCoinCommand(msg, symbol, tf);
 
-    // 2) 상위25/단타10 드롭다운(보조 메시지)
+    // 2) 상위25/단타10 드롭다운(보조 메시지로 별도 전송)
     await handleCoinRoot(msg);
   });
 
   /* ========== 상호작용(버튼/셀렉트) ========== */
   client.on('interactionCreate', async (i) => {
     try {
+      // 모든 상호작용에서 서버 트래킹
+      if (i.guildId && i.user) trackGuildUser(i.guildId, i.user.id);
+
       /* ----- 기본 분석 버튼 ----- */
       if (i.isButton() && (i.customId === BTN.ANALYZE || i.customId === BTN.REFRESH)) {
         const m = i.message.embeds?.[0]?.title?.match(/📊 (.+) · (.+) 신호/);
         const symbol = m?.[1] || CONFIG.DEFAULT_SYMBOL;
-        const tf     = m?.[2] || CONFIG.DEFAULT_TF;
+        const tf = m?.[2] || CONFIG.DEFAULT_TF;
 
         await i.deferUpdate();
 
@@ -103,23 +128,29 @@ export function initRouter(client: Client) {
         const f = calcBaseFeatures(candles);
 
         const tfMin = tf.endsWith('m')
-          ? Number(tf.replace('m',''))
+          ? Number(tf.replace('m', ''))
           : tf.endsWith('h')
-          ? Number(tf.replace('h',''))*60
+          ? Number(tf.replace('h', '')) * 60
           : 15;
-
         const end = Date.now();
         const start = end - Math.max(tfMin, 15) * 60 * 1000;
         const trades = await fetchRecentTrades(symbol, start, end, 5000);
 
-        const { cvdSeries, profile } =
-          buildCVDandProfile(trades, tfMin*60*1000, Math.max(0.5, f.last*0.001));
+        const { cvdSeries, profile } = buildCVDandProfile(
+          trades,
+          tfMin * 60 * 1000,
+          Math.max(0.5, f.last * 0.001),
+        );
 
         const decision = await decide(symbol, tf, f, cvdSeries, profile);
         const cvdNow = cvdSeries.at(-1)?.cvd ?? 0;
-        const cvdUp  = cvdSeries.length>2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
-        const profileTop = profile.slice().sort((a,b)=>b.vol-a.vol).slice(0,3)
-          .map(n => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`).join(', ');
+        const cvdUp = cvdSeries.length > 2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
+        const profileTop = profile
+          .slice()
+          .sort((a, b) => b.vol - a.vol)
+          .slice(0, 3)
+          .map((n) => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`)
+          .join(', ');
 
         const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
         const acc = getAccount(i.user.id);
@@ -191,11 +222,6 @@ export function initRouter(client: Client) {
               await i.reply({ content: `🧹 가상선물 초기화 완료`, ephemeral: true });
               break;
             }
-            case PAPER_BTN.CURR: {
-              const curr = toggleCurrency(userId);
-              await i.reply({ content: `통화: ${curr}`, ephemeral: true });
-              break;
-            }
             case PAPER_BTN.PORT: {
               const e = await buildPortfolioEmbed(userId);
               const acc = getAccount(userId);
@@ -204,16 +230,14 @@ export function initRouter(client: Client) {
                 components: [
                   rowPaperButtons(acc.enabled),
                   rowPaperMgmt(acc.enabled),
-                  ...rowPaperSelects(acc.orderAmountUSD, acc.leverage), // 금액/레버리지는 에페메럴에서 조정
                 ],
                 ephemeral: true,
               });
               break;
             }
-            case PAPER_BTN.REFRESH: {
-              // 실시간 PnL 갱신(에페메럴 응답)
-              const e = await buildPortfolioEmbed(userId);
-              await i.reply({ content: '🔄 갱신 완료', embeds: [e], ephemeral: true });
+            case PAPER_BTN.CURR: {
+              const curr = toggleCurrency(userId);
+              await i.reply({ content: `통화: ${curr}`, ephemeral: true });
               break;
             }
           }
@@ -221,35 +245,6 @@ export function initRouter(client: Client) {
           await i.reply({ content: `⚠️ ${e?.message || '오류'}`, ephemeral: true });
         }
         return;
-      }
-
-      /* ----- Paper 셀렉트(주문 금액 / 레버리지) ----- */
-      if (i.isStringSelectMenu() && (Object.values(PAPER_SEL) as string[]).includes(i.customId)) {
-        const userId = i.user.id;
-
-        if (i.customId === PAPER_SEL.AMOUNT) {
-          const amt = Number(i.values[0]);
-          const newAmt = setPaperAmount(userId, amt);
-          const e = await buildPortfolioEmbed(userId);
-          await i.reply({
-            content: `💵 주문 금액을 **$${newAmt}** 로 설정했습니다.`,
-            embeds: [e],
-            ephemeral: true,
-          });
-          return;
-        }
-
-        if (i.customId === PAPER_SEL.LEV) {
-          const lev = Math.max(1, Math.min(CONFIG.PAPER.MAX_LEVERAGE, Number(i.values[0])));
-          const newLev = setPaperLeverage(userId, lev);
-          const e = await buildPortfolioEmbed(userId);
-          await i.reply({
-            content: `🧮 레버리지를 **${newLev}x** 로 설정했습니다.`,
-            embeds: [e],
-            ephemeral: true,
-          });
-          return;
-        }
       }
 
       /* ----- 셀렉트(심볼/TF/랭킹) ----- */
@@ -260,7 +255,8 @@ export function initRouter(client: Client) {
         })();
 
         if (i.customId === SEL.SYMBOL) symbol = i.values[0];
-        if (i.customId === SEL.TF)     tf     = i.values[0];
+        if (i.customId === SEL.TF) tf = i.values[0];
+        // 확장 랭킹 셀렉트가 있을 수 있으니 방어적으로 처리
         if ((SEL as any).TOP25 && i.customId === (SEL as any).TOP25) symbol = i.values[0];
         if ((SEL as any).SCALP10 && i.customId === (SEL as any).SCALP10) symbol = i.values[0];
 
@@ -270,23 +266,29 @@ export function initRouter(client: Client) {
         const f = calcBaseFeatures(candles);
 
         const tfMin = tf.endsWith('m')
-          ? Number(tf.replace('m',''))
+          ? Number(tf.replace('m', ''))
           : tf.endsWith('h')
-          ? Number(tf.replace('h',''))*60
+          ? Number(tf.replace('h', '')) * 60
           : 15;
-
         const end = Date.now();
         const start = end - Math.max(tfMin, 15) * 60 * 1000;
         const trades = await fetchRecentTrades(symbol, start, end, 5000);
 
-        const { cvdSeries, profile } =
-          buildCVDandProfile(trades, tfMin*60*1000, Math.max(0.5, f.last*0.001));
+        const { cvdSeries, profile } = buildCVDandProfile(
+          trades,
+          tfMin * 60 * 1000,
+          Math.max(0.5, f.last * 0.001),
+        );
         const decision = await decide(symbol, tf, f, cvdSeries, profile);
 
         const cvdNow = cvdSeries.at(-1)?.cvd ?? 0;
-        const cvdUp  = cvdSeries.length>2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
-        const profileTop = profile.slice().sort((a,b)=>b.vol-a.vol).slice(0,3)
-          .map(n => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`).join(', ');
+        const cvdUp = cvdSeries.length > 2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
+        const profileTop = profile
+          .slice()
+          .sort((a, b) => b.vol - a.vol)
+          .slice(0, 3)
+          .map((n) => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`)
+          .join(', ');
 
         const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
         const acc = getAccount(i.user.id);
@@ -303,7 +305,6 @@ export function initRouter(client: Client) {
         });
         return;
       }
-
     } catch (e) {
       console.error('Router error:', e);
       if (i.isRepliable()) {
