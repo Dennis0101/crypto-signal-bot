@@ -1,3 +1,4 @@
+// src/paper/store.ts
 import fs from 'fs';
 import path from 'path';
 
@@ -20,32 +21,30 @@ export interface Account {
   enabled: boolean;
   positions: Map<string, Position>;
   openedAt: number;
-  realizedPnl: number;
+  realizedPnl: number; // 누적 실현손익
 }
 
 const SAVE_PATH = path.resolve('data/paper.json');
 
-// 🏦 서버별 계정 저장소 (guildId -> userId -> Account)
+// ✅ 서버별(guildId) → 유저별(userId) → 계정
 const accounts: Map<string, Map<string, Account>> = new Map();
 
-/* ===================== 계정 접근 ===================== */
+const DEFAULT_ACCOUNT = (): Account => ({
+  equityUSD: 100_000,
+  orderAmountUSD: 100,
+  leverage: 5,
+  currency: 'USD',
+  enabled: false,
+  positions: new Map(),
+  openedAt: Date.now(),
+  realizedPnl: 0,
+});
+
 export function getAccount(guildId: string, userId: string): Account {
   if (!accounts.has(guildId)) accounts.set(guildId, new Map());
-  const guildMap = accounts.get(guildId)!;
-
-  if (!guildMap.has(userId)) {
-    guildMap.set(userId, {
-      equityUSD: 100_000,
-      orderAmountUSD: 100,
-      leverage: 5,
-      currency: 'USD',
-      enabled: false,
-      positions: new Map(),
-      openedAt: Date.now(),
-      realizedPnl: 0,
-    });
-  }
-  return guildMap.get(userId)!;
+  const g = accounts.get(guildId)!;
+  if (!g.has(userId)) g.set(userId, DEFAULT_ACCOUNT());
+  return g.get(userId)!;
 }
 
 export function getPosition(guildId: string, userId: string, symbol: string) {
@@ -67,11 +66,13 @@ export function addEquity(guildId: string, userId: string, delta: number) {
 }
 
 export function setOrderAmount(guildId: string, userId: string, usd: number) {
-  getAccount(guildId, userId).orderAmountUSD = usd;
+  const acc = getAccount(guildId, userId);
+  acc.orderAmountUSD = usd;
 }
 
 export function setLeverage(guildId: string, userId: string, lev: number) {
-  getAccount(guildId, userId).leverage = lev;
+  const acc = getAccount(guildId, userId);
+  acc.leverage = lev;
 }
 
 export function setCurrency(guildId: string, userId: string, c: 'USD' | 'KRW') {
@@ -83,24 +84,15 @@ export function setEnabled(guildId: string, userId: string, e: boolean) {
 }
 
 export function resetAccount(guildId: string, userId: string) {
-  accounts.get(guildId)?.set(userId, {
-    equityUSD: 100_000,
-    orderAmountUSD: 100,
-    leverage: 5,
-    currency: 'USD',
-    enabled: false,
-    positions: new Map(),
-    openedAt: Date.now(),
-    realizedPnl: 0,
-  });
+  if (!accounts.has(guildId)) accounts.set(guildId, new Map());
+  accounts.get(guildId)!.set(userId, DEFAULT_ACCOUNT());
 }
 
-/* ===================== 랭킹 기능 ===================== */
+/* =============== 랭킹 =============== */
 export function getRanking(guildId: string) {
-  const guildMap = accounts.get(guildId);
-  if (!guildMap) return [];
-
-  return Array.from(guildMap.entries())
+  const g = accounts.get(guildId);
+  if (!g) return [];
+  return Array.from(g.entries())
     .map(([userId, acc]) => {
       const total = acc.equityUSD + acc.realizedPnl;
       const roi = ((total - 100_000) / 100_000) * 100;
@@ -109,41 +101,71 @@ export function getRanking(guildId: string) {
     .sort((a, b) => b.total - a.total);
 }
 
-/* ===================== 스냅샷 저장/로드 ===================== */
+/* =============== 스냅샷 저장/로드 =============== */
+function accountToPlain(acc: Account) {
+  return {
+    equityUSD: acc.equityUSD,
+    orderAmountUSD: acc.orderAmountUSD,
+    leverage: acc.leverage,
+    currency: acc.currency,
+    enabled: acc.enabled,
+    openedAt: acc.openedAt,
+    realizedPnl: acc.realizedPnl,
+    positions: Array.from(acc.positions.values()), // Map -> Array
+  };
+}
+
 export function saveSnapshot() {
-  const plain: Record<string, Record<string, any>> = {};
-  for (const [guildId, guildMap] of accounts.entries()) {
+  const plain: Record<string, Record<string, ReturnType<typeof accountToPlain>>> = {};
+  for (const [guildId, gmap] of accounts.entries()) {
     plain[guildId] = {};
-    for (const [userId, acc] of guildMap.entries()) {
-      plain[guildId][userId] = {
-        ...acc,
-        positions: Array.from(acc.positions.values()), // Map → Array
-      };
+    for (const [userId, acc] of gmap.entries()) {
+      plain[guildId][userId] = accountToPlain(acc);
     }
   }
   fs.mkdirSync(path.dirname(SAVE_PATH), { recursive: true });
-  fs.writeFileSync(SAVE_PATH, JSON.stringify(plain, null, 2));
+  fs.writeFileSync(SAVE_PATH, JSON.stringify(plain, null, 2), 'utf8');
 }
 
 export function loadSnapshot() {
   if (!fs.existsSync(SAVE_PATH)) return;
-  const raw = JSON.parse(fs.readFileSync(SAVE_PATH, 'utf8'));
-  for (const [guildId, guildUsers] of Object.entries(raw)) {
-    const guildMap = new Map<string, Account>();
-    for (const [userId, acc] of Object.entries(guildUsers as any)) {
-      guildMap.set(userId, {
-        ...acc,
-        positions: new Map((acc as any).positions.map((p: Position) => [p.symbol, p])),
+  const raw = JSON.parse(fs.readFileSync(SAVE_PATH, 'utf8')) as Record<
+    string,
+    Record<
+      string,
+      {
+        equityUSD: number;
+        orderAmountUSD: number;
+        leverage: number;
+        currency: 'USD' | 'KRW';
+        enabled: boolean;
+        openedAt: number;
+        realizedPnl: number;
+        positions: Position[];
+      }
+    >
+  >;
+
+  for (const [guildId, users] of Object.entries(raw)) {
+    const gmap = new Map<string, Account>();
+    for (const [userId, a] of Object.entries(users)) {
+      gmap.set(userId, {
+        equityUSD: a.equityUSD,
+        orderAmountUSD: a.orderAmountUSD,
+        leverage: a.leverage,
+        currency: a.currency,
+        enabled: a.enabled,
+        openedAt: a.openedAt,
+        realizedPnl: a.realizedPnl,
+        positions: new Map(a.positions.map(p => [p.symbol, p])),
       });
     }
-    accounts.set(guildId, guildMap);
+    accounts.set(guildId, gmap);
   }
 }
 
-// ⏱️ 주기적 저장
+// 주기 저장 + 종료 시 저장
 setInterval(saveSnapshot, 30_000);
-
-// 종료 시 저장
 process.on('SIGINT', () => {
   saveSnapshot();
   process.exit(0);
