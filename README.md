@@ -39,59 +39,27 @@
 ## 📂 Project Structure
 
 src/
- ├── clients/
- │    └── bitget.ts
- │         • Bitget REST API 연동 모듈
- │         • 캔들 데이터, 체결 데이터, 티커/랭킹, 심볼 목록 제공
- │
- ├── indicators/
- │    ├── calc.ts
- │    │    • 기본 지표 계산 (SMA, EMA, 변동성 등)
- │    └── cvd.ts
- │         • CVD(Cumulative Volume Delta) 및 Volume Profile 생성
- │
- ├── strategy/
- │    └── signal.ts
- │         • 지표·체결 데이터 기반 매매 시그널 결정 (LONG/SHORT/NEUTRAL)
- │
- ├── paper/
- │    ├── store.ts
- │    │    • Paper Trading 계정·포지션 상태 저장소
- │    ├── service.ts
- │    │    • 주문, 청산, 반전, 초기화 등 가상거래 로직
- │    ├── math.ts
- │    │    • 수량 계산, 손익(PnL) 계산 유틸리티
- │    └── ui.ts
- │         • Paper Trading 전용 포트폴리오 Embed UI
- │
- ├── streams/
- │    └── bitget.ts
- │         • Bitget WebSocket 실시간 구독
- │         • 가격/체결 데이터 스트리밍 → 메시지 자동 업데이트
- │
- ├── ui/
- │    ├── components.ts
- │    │    • Discord UI 컴포넌트 정의 (버튼, 드롭다운)
- │    └── embed.ts
- │         • 분석 결과 Embed 메시지 생성
- │
- ├── utils/
- │    └── cache.ts
- │         • TTL Cache (API 호출 과호출 방지)
- │
- ├── commands/
- │    ├── coin.ts
- │    │    • `!코인` 명령어 처리 (분석 실행)
- │    └── coin-root.ts
- │         • Top25 / Scalp10 랭킹 UI 보조 메시지
- │
+ ├── clients/bitget.ts
+ ├── indicators/{calc.ts, cvd.ts}
+ ├── strategy/signal.ts
+ ├── paper/{store.ts, service.ts, math.ts, ui.ts}
+ ├── streams/bitget.ts
+ ├── ui/{components.ts, embed.ts}
+ ├── utils/cache.ts
+ ├── commands/{coin.ts, coin-root.ts}
  ├── router.ts
- │    • Discord 이벤트 라우터
- │    • 메시지 명령어, 버튼/셀렉트 인터랙션, Paper Trading 연동
- │
  ├── config.ts
- │    • 환경설정 (API Base URL, 기본 심볼/TF, 캐시·쿨다운 설정)
- │
  └── index.ts
-      • 엔트리포인트
-      • Discord Client 초기화 + Router 연결
+ ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+ - **clients/bitget.ts** → Bitget REST API 연동 (캔들, 체결, 티커, 심볼)
+- **indicators/** → SMA, EMA, 변동성, CVD 등 지표 계산
+- **strategy/signal.ts** → 매매 시그널 생성
+- **paper/** → Paper Trading 로직 및 UI
+- **streams/bitget.ts** → WebSocket 실시간 데이터 구독
+- **ui/** → Discord Embed & 버튼/드롭다운 UI
+- **utils/cache.ts** → TTL 캐시 (API 과호출 방지)
+- **commands/** → Discord 명령어 처리
+- **router.ts** → 이벤트 라우팅
+- **config.ts** → 환경설정
+- **index.ts** → 진입점 (Client 초기화 + Router 연결)
