@@ -160,10 +160,38 @@ export function initRouter(client: Client) {
         try {
           switch (i.customId) {
             case PAPER_BTN.TOGGLE: {
+              // 상태 토글
               const on = toggleEnabled(guildId, userId);
-              await i.reply({ content: `🧪 Paper Trading: ${on ? 'ON' : 'OFF'}`, ephemeral: true });
+
+              // 현재 심볼/TF 파싱해서 선택행 복구
+              const { symbol: sym, tf } = (() => {
+                const mm = i.message.embeds?.[0]?.title?.match(/📊 (.+) · (.+) 신호/);
+                return {
+                  symbol: (mm?.[1] || CONFIG.DEFAULT_SYMBOL) as string,
+                  tf: (mm?.[2] || CONFIG.DEFAULT_TF) as string,
+                };
+              })();
+              const [rowSel1, rowSel2] = rowsSelects(sym, tf);
+
+              // ✅ 원본 메시지 버튼행 즉시 교체
+              await i.update({
+                components: [
+                  rowsButtons(),
+                  rowSel1,
+                  rowSel2,
+                  rowPaperButtons(on),
+                  rowPaperMgmt(on),
+                ],
+              });
+
+              // 안내는 에페메럴로
+              await i.followUp({
+                content: `🧪 Paper Trading: ${on ? 'ON' : 'OFF'}`,
+                ephemeral: true,
+              });
               break;
             }
+
             case PAPER_BTN.LONG: {
               const { price, qty, lev } = await placePaperOrder(guildId, userId, symbol, 'LONG');
               const e = await buildPortfolioEmbed(guildId, userId);
