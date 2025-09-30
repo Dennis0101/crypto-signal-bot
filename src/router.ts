@@ -76,15 +76,14 @@ export function initRouter(client: Client) {
         const [rowSel1, rowSel2] = rowsSelects(symbol, tf);
         const acc = getAccount(i.user.id);
 
-        // ✅ 메인 메시지에는 5줄만 (디스코드 제한)
         await i.editReply({
           embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
           components: [
-            rowsButtons(),          // 1
-            rowSel1,                // 2
-            rowSel2,                // 3
-            rowPaperButtons(acc.enabled), // 4
-            rowPaperMgmt(acc.enabled),    // 5
+            rowsButtons(),
+            rowSel1,
+            rowSel2,
+            rowPaperButtons(acc.enabled),
+            rowPaperMgmt(acc.enabled),
           ],
         });
         return;
@@ -97,6 +96,8 @@ export function initRouter(client: Client) {
         const userId = i.user.id;
 
         try {
+          let extraEmbed = null;
+
           switch (i.customId) {
             case PAPER_BTN.TOGGLE: {
               const on = toggleEnabled(userId);
@@ -105,27 +106,43 @@ export function initRouter(client: Client) {
             }
             case PAPER_BTN.LONG: {
               const { price, qty, lev } = await placePaperOrder(userId, symbol, 'LONG');
-              await i.reply({ content: `✅ LONG 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`, ephemeral:true });
+              extraEmbed = await buildPortfolioEmbed(userId);
+              await i.reply({
+                content: `✅ LONG 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`,
+                embeds: [extraEmbed],
+                ephemeral: true
+              });
               break;
             }
             case PAPER_BTN.SHORT: {
               const { price, qty, lev } = await placePaperOrder(userId, symbol, 'SHORT');
-              await i.reply({ content: `✅ SHORT 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`, ephemeral:true });
+              extraEmbed = await buildPortfolioEmbed(userId);
+              await i.reply({
+                content: `✅ SHORT 체결 • ${symbol} @ ${price.toFixed(4)} · qty ${qty.toFixed(4)} · ${lev}x`,
+                embeds: [extraEmbed],
+                ephemeral: true
+              });
               break;
             }
             case PAPER_BTN.CLOSE: {
               const { price, pnl } = await closePaperPosition(userId, symbol);
-              await i.reply({ content: `🔚 포지션 청산 • ${symbol} @ ${price.toFixed(4)} · PnL ${pnl.toFixed(2)} USD`, ephemeral:true });
+              extraEmbed = await buildPortfolioEmbed(userId);
+              await i.reply({
+                content: `🔚 포지션 청산 • ${symbol} @ ${price.toFixed(4)} · PnL ${pnl.toFixed(2)} USD`,
+                embeds: [extraEmbed],
+                ephemeral: true
+              });
               break;
             }
             case PAPER_BTN.FLIP: {
               await flipPaperPosition(userId, symbol);
-              await i.reply({ content: `🔁 포지션 뒤집기 완료`, ephemeral:true });
+              extraEmbed = await buildPortfolioEmbed(userId);
+              await i.reply({ content: `🔁 포지션 뒤집기 완료`, embeds: [extraEmbed], ephemeral: true });
               break;
             }
             case PAPER_BTN.RESET: {
               resetPaper(userId);
-              await i.reply({ content: `🧹 가상선물 초기화 완료`, ephemeral:true });
+              await i.reply({ content: `🧹 가상선물 초기화 완료`, ephemeral: true });
               break;
             }
             case PAPER_BTN.PORT: {
@@ -134,40 +151,14 @@ export function initRouter(client: Client) {
               const rows = [
                 rowPaperButtons(acc.enabled),
                 rowPaperMgmt(acc.enabled),
-                ...rowPaperSelects(acc.orderAmountUSD, acc.leverage), // 금액/레버리지는 에페메럴에서만
+                ...rowPaperSelects(acc.orderAmountUSD, acc.leverage),
               ];
               await i.reply({ embeds: [e], components: rows, ephemeral: true });
               break;
             }
             case PAPER_BTN.CURR: {
               const curr = toggleCurrency(userId);
-              await i.reply({ content: `통화: ${curr}`, ephemeral:true });
-              break;
-            }
-            case PAPER_BTN.REFRESH: {
-              // 메인 임베드 재계산
-              const tfMatch = i.message.embeds?.[0]?.title?.match(/📊 .+ · (.+) 신호/);
-              const tf = (tfMatch?.[1] || CONFIG.DEFAULT_TF);
-
-              const candles = await fetchCandles(symbol, tf, 300);
-              const f = calcBaseFeatures(candles);
-              const tfMin = tf.endsWith('m') ? Number(tf.replace('m',''))
-                         : tf.endsWith('h') ? Number(tf.replace('h',''))*60 : 15;
-              const end = Date.now(), start = end - Math.max(tfMin, 15) * 60 * 1000;
-              const trades = await fetchRecentTrades(symbol, start, end, 5000);
-              const { cvdSeries, profile } =
-                buildCVDandProfile(trades, tfMin*60*1000, Math.max(0.5, f.last*0.001));
-              const decision = await decide(symbol, tf, f, cvdSeries, profile);
-
-              const cvdNow = cvdSeries.at(-1)?.cvd ?? 0;
-              const cvdUp  = cvdSeries.length>2 && cvdSeries.at(-1)!.cvd > cvdSeries.at(-2)!.cvd;
-              const profileTop = profile.slice().sort((a,b)=>b.vol-a.vol).slice(0,3)
-                .map(n => `${n.price.toFixed(2)}(${n.vol.toFixed(0)})`).join(', ');
-
-              await i.update({
-                embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
-                components: i.message.components // 기존 5줄 유지
-              });
+              await i.reply({ content: `통화: ${curr}`, ephemeral: true });
               break;
             }
           }
@@ -216,11 +207,11 @@ export function initRouter(client: Client) {
         await i.editReply({
           embeds: [buildEmbed(symbol, tf, f, decision, { cvdNow, cvdUp }, profileTop)],
           components: [
-            rowsButtons(),                // 1
-            rowSel1,                      // 2
-            rowSel2,                      // 3
-            rowPaperButtons(acc.enabled), // 4
-            rowPaperMgmt(acc.enabled),    // 5
+            rowsButtons(),
+            rowSel1,
+            rowSel2,
+            rowPaperButtons(acc.enabled),
+            rowPaperMgmt(acc.enabled),
           ],
         });
         return;
