@@ -7,6 +7,13 @@ import { usdToKrw, fmtUSD, fmtKRW, unrealizedPnlUSD } from './math.js';
 export async function buildPortfolioEmbed(guildId: string, userId: string) {
   const acc = getAccount(guildId, userId);
 
+  if (!acc) {
+    return new EmbedBuilder()
+      .setTitle(`🧪 Paper Portfolio`)
+      .setDescription('⚠️ 계정 정보가 없습니다. 먼저 Paper Trading을 활성화하세요.')
+      .setColor(0xEF4444);
+  }
+
   let upnl = 0;
   const fields: { name: string; value: string; inline?: boolean }[] = [];
 
@@ -19,8 +26,8 @@ export async function buildPortfolioEmbed(guildId: string, userId: string) {
     fields.push({
       name: `${p.symbol} · ${p.side} · ${p.lev}x`,
       value:
-        `진입 ${p.entry.toFixed(4)} / 수량 ${p.qty.toFixed(4)}\n` +
-        `현재가 ${mark.toFixed(4)} · 미실현PnL ${fmtUSD(pnl)}`,
+        `진입: ${p.entry.toFixed(4)} / 수량: ${p.qty.toFixed(4)}\n` +
+        `현재가: ${mark.toFixed(4)} · 미실현PnL: ${fmtUSD(pnl)}`,
       inline: false,
     });
   }
@@ -36,7 +43,8 @@ export async function buildPortfolioEmbed(guildId: string, userId: string) {
       `총자산: ${fmtUSD(totalUSD)} (${fmtKRW(totalKRW)})\n` +
       `주문금액: $${acc.orderAmountUSD}  ·  레버리지: ${acc.leverage}x`
     )
-    .addFields(fields.length ? fields : [{ name: '포지션', value: '보유 포지션 없음', inline: false }]);
+    .addFields(fields.length ? fields : [{ name: '포지션', value: '보유 포지션 없음', inline: false }])
+    .setColor(0x3B82F6); // 파란색 기본
 
   return e;
 }
