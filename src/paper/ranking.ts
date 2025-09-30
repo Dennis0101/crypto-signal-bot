@@ -24,15 +24,27 @@ export function getGuildUsers(guildId: string): string[] {
 /**
  * 서버별 수익률 랭킹 임베드 생성
  * - 기준: CONFIG.PAPER.DEFAULT_EQUITY_USD 대비 현재 equityUSD 변화율
- * - 현재 구조상 equityUSD는 실현 손익이 반영됨(미실현은 제외). 필요하면 향후 uPnL 합산 로직을 여기에 추가 가능.
+ * - 현재는 실현 손익 기준(equityUSD)으로만 랭킹을 만듭니다. (uPnL 포함이 필요하면 추후 확장)
  */
 export function buildRankingEmbed(guild: Guild, topN = 10): EmbedBuilder {
   const defaultEq = CONFIG.PAPER.DEFAULT_EQUITY_USD;
   const users = getGuildUsers(guild.id);
 
+  // 참가자 없으면 안내
+  if (!users.length) {
+    return new EmbedBuilder()
+      .setTitle(`🏆 서버 랭킹 · ${guild.name}`)
+      .setDescription(
+        `기준자본: $${defaultEq.toLocaleString()} · 참가자 수: 0\n` +
+        `아직 페이퍼 트레이딩 참여자가 없습니다. 먼저 거래를 시작해 주세요!`
+      )
+      .setColor(0xF59E0B);
+  }
+
   const rows = users
-    .map(uid => {
-      const acc = getAccount(uid); // 기존 시그니처 그대로 사용
+    .map((uid) => {
+      // 🔧 변경: 서버별 저장소 기준이므로 guild.id와 uid를 함께 전달
+      const acc = getAccount(guild.id, uid);
       const equity = Number(acc?.equityUSD ?? defaultEq);
       const pnlUSD = equity - defaultEq;
       const pnlPct = (pnlUSD / defaultEq) * 100;
@@ -42,13 +54,13 @@ export function buildRankingEmbed(guild: Guild, topN = 10): EmbedBuilder {
 
   const top = rows.slice(0, Math.max(1, topN));
 
-  const lines = top.length
-    ? top.map((r, i) =>
-        `${i + 1}위 ${r.pnlPct >= 0 ? '📈' : '📉'} <@${r.uid}>  ` +
-        `${r.pnlPct.toFixed(2)}%  ·  Equity $${r.equity.toFixed(2)}  ` +
-        `(PnL $${r.pnlUSD.toFixed(2)})`
-      ).join('\n')
-    : '아직 페이퍼 트레이딩 참여자가 없습니다. 먼저 거래를 시작해 주세요!';
+  const lines = top
+    .map((r, i) =>
+      `${i + 1}위 ${r.pnlPct >= 0 ? '📈' : '📉'} <@${r.uid}>  ` +
+      `${r.pnlPct.toFixed(2)}%  ·  Equity $${r.equity.toFixed(2)}  ` +
+      `(PnL $${r.pnlUSD.toFixed(2)})`
+    )
+    .join('\n');
 
   return new EmbedBuilder()
     .setTitle(`🏆 서버 랭킹 · ${guild.name}`)
@@ -56,6 +68,9 @@ export function buildRankingEmbed(guild: Guild, topN = 10): EmbedBuilder {
       `기준자본: $${defaultEq.toLocaleString()} · 참가자 수: ${users.length}\n` +
       `정렬: 수익률(%) 내림차순`
     )
-    .addFields({ name: '랭킹 Top ' + Math.min(topN, rows.length || 1), value: lines })
-    .setColor(0xF59E0B); // amber
+    .addFields({
+      name: `랭킹 Top ${Math.min(topN, rows.length)}`,
+      value: lines || '데이터가 없습니다.',
+    })
+    .setColor(0xF59E0B);
 }
