@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { fetchCandles, fetchRecentTrades } from '../../clients/bitget.js';
 import { tradesToOhlc } from '../market/aggregate.js';
 import { timeframeToMs } from '../market/timeframes.js';
+import { getUserTier, requireTier } from '../tier/tier.js';
 const CandlesQuery = z.object({
     symbol: z.string().min(3).max(30).default('BTCUSDT'),
     tf: z.custom((v) => typeof v === 'string', 'tf').transform((v) => String(v)),
@@ -17,6 +18,13 @@ export function createRouter() {
             return res.status(400).json({ error: { code: 'BAD_TF', message: 'Unsupported timeframe' } });
         // Small timeframes are synthesized from trades (higher load → capped limits).
         if (tfMs < 60_000) {
+            const tier = req.userId ? await getUserTier(req.userId) : 'BASIC';
+            const gate = requireTier(tier, 'PRO');
+            if (!gate.ok) {
+                return res.status(402).json({
+                    error: { code: 'UPGRADE_REQUIRED', message: 'Sub-minute timeframes require Pro plan.' },
+                });
+            }
             const end = Date.now();
             const start = end - Math.min(q.limit, 1000) * tfMs;
             const trades = await fetchRecentTrades(q.symbol, start, end, 5000);

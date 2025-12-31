@@ -101,6 +101,64 @@
           </section>
 
           <section class="panel">
+            <div class="panel-title">Settings</div>
+            <div class="hint" id="settingsHint">Login to configure keys and risk limits.</div>
+
+            <div class="divider"></div>
+
+            <div class="field">
+              <label>Trading</label>
+              <div class="row">
+                <button class="btn ghost" id="btnTradingToggle" disabled>Enable trading</button>
+                <div class="pill" id="tradingState">OFF</div>
+              </div>
+              <div class="hint">Safety-first: trading is off by default.</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="panel-title" style="margin-top:0;">Exchange key (Bitget)</div>
+            <div class="field">
+              <label>Label</label>
+              <input id="keyLabel" class="input" placeholder="Main account" />
+            </div>
+            <div class="field">
+              <label>API Key</label>
+              <input id="apiKey" class="input" placeholder="will never be shown again" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>API Secret</label>
+              <input id="apiSecret" class="input" placeholder="will never be shown again" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>Passphrase (optional)</label>
+              <input id="apiPass" class="input" placeholder="if your exchange requires it" autocomplete="off" />
+            </div>
+            <div class="row">
+              <button class="btn" id="btnSaveKey" disabled>Save key</button>
+              <button class="btn ghost" id="btnReloadKeys" disabled>Refresh</button>
+            </div>
+            <div class="hint" id="keysHint">Withdraw permission must be disabled.</div>
+
+            <div class="divider"></div>
+
+            <div class="panel-title" style="margin-top:0;">Risk limits</div>
+            <div class="field">
+              <label>Max daily loss (USD)</label>
+              <input id="riskDaily" class="input" value="100" />
+            </div>
+            <div class="field">
+              <label>Max open exposure (USD)</label>
+              <input id="riskExposure" class="input" value="200" />
+            </div>
+            <div class="field">
+              <label>Max concurrent positions</label>
+              <input id="riskPositions" class="input" value="1" />
+            </div>
+            <button class="btn" id="btnSaveRisk" disabled>Save risk limits</button>
+          </section>
+
+          <section class="panel">
             <div class="panel-title">Trust</div>
             <div class="trust">
               <div class="trust-item">

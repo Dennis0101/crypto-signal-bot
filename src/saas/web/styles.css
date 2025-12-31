@@ -138,6 +138,20 @@ body{
 .trust-k{font-weight:700; font-size:12px}
 .trust-v{color:var(--muted); font-size:11px}
 
+.pill{
+  height:34px;
+  padding:0 10px;
+  border-radius:999px;
+  border:1px solid rgba(27,42,58,.95);
+  background: rgba(7,11,16,.55);
+  display:flex;
+  align-items:center;
+  color: var(--muted);
+  font-weight:700;
+}
+.pill.on{border-color: rgba(46,229,157,.32); color: var(--green)}
+.pill.off{border-color: rgba(255,77,109,.32); color: var(--red)}
+
 .chart-wrap{
   border:1px solid var(--line);
   background: linear-gradient(180deg, rgba(15,22,32,.86), rgba(13,20,29,.86));

@@ -11,6 +11,8 @@ import { createRouter as createAuthRouter } from './routes/auth.js';
 import { createRouter as createKeysRouter } from './routes/keys.js';
 import { createRouter as createMarketRouter } from './routes/market.js';
 import { createRouter as createTradesRouter } from './routes/trades.js';
+import { createRouter as createSettingsRouter } from './routes/settings.js';
+import { createRouter as createAnalysisRouter } from './routes/analysis.js';
 
 const app = express();
 
@@ -39,6 +41,8 @@ app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
 
 app.use('/v1/auth', createAuthRouter());
 app.use('/v1/exchange-keys', createKeysRouter());
+app.use('/v1/settings', createSettingsRouter());
+app.use('/v1/analysis', createAnalysisRouter());
 app.use('/v1/market', createMarketRouter());
 app.use('/v1/trades', createTradesRouter());
 

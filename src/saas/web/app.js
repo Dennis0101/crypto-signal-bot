@@ -23,6 +23,24 @@ const tradesHint = el('tradesHint');
 const tradesTable = el('tradesTable');
 const tradesEmpty = el('tradesEmpty');
 
+// Settings UI
+const settingsHint = el('settingsHint');
+const btnSaveKey = el('btnSaveKey');
+const btnReloadKeys = el('btnReloadKeys');
+const keyLabel = el('keyLabel');
+const apiKey = el('apiKey');
+const apiSecret = el('apiSecret');
+const apiPass = el('apiPass');
+const keysHint = el('keysHint');
+
+const btnSaveRisk = el('btnSaveRisk');
+const riskDaily = el('riskDaily');
+const riskExposure = el('riskExposure');
+const riskPositions = el('riskPositions');
+
+const btnTradingToggle = el('btnTradingToggle');
+const tradingState = el('tradingState');
+
 function setStatus(s) {
   statusText.textContent = s;
 }
@@ -61,6 +79,23 @@ function heikinAshi(candles) {
 
 async function apiGet(path) {
   const res = await fetch(path, { credentials: 'include' });
+  const txt = await res.text();
+  let json = null;
+  try { json = JSON.parse(txt); } catch { /* ignore */ }
+  if (!res.ok) {
+    const msg = json?.error?.message || txt || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
+async function apiJson(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const txt = await res.text();
   let json = null;
   try { json = JSON.parse(txt); } catch { /* ignore */ }
@@ -196,16 +231,57 @@ async function loadMe() {
       userPill.querySelector('.user-pill-dot').classList.remove('on');
       btnLogout.style.display = 'none';
       tradesHint.textContent = 'Login to see your trade history overlays.';
+      settingsHint.textContent = 'Login to configure keys and risk limits.';
+      btnSaveKey.disabled = true;
+      btnReloadKeys.disabled = true;
+      btnSaveRisk.disabled = true;
+      btnTradingToggle.disabled = true;
+      tradingState.textContent = 'OFF';
+      tradingState.classList.remove('on');
+      tradingState.classList.add('off');
       return null;
     }
     userText.textContent = `${u.email || u.name || u.id} • ${u.tier}`;
     userPill.querySelector('.user-pill-dot').classList.add('on');
     btnLogout.style.display = '';
     tradesHint.textContent = 'Your trade history is shown below and on the chart.';
+    settingsHint.textContent = 'Keys are encrypted and can’t be viewed again.';
+    btnSaveKey.disabled = false;
+    btnReloadKeys.disabled = false;
+    btnSaveRisk.disabled = false;
+    btnTradingToggle.disabled = false;
     return u;
   } catch {
     return null;
   }
+}
+
+async function loadSettings() {
+  const u = await loadMe();
+  if (!u) return;
+
+  try {
+    const j = await apiGet('/v1/settings');
+    const risk = j?.risk;
+    if (risk) {
+      riskDaily.value = String(risk.maxDailyLossUsd ?? 100);
+      riskExposure.value = String(risk.maxOpenExposureUsd ?? 200);
+      riskPositions.value = String(risk.maxConcurrentPositions ?? 1);
+      setTradingUi(Boolean(risk.tradingEnabled));
+    }
+    // keys list is not rendered as a full list yet; we provide a hint
+    const keyCount = Array.isArray(j?.keys) ? j.keys.length : 0;
+    keysHint.textContent = keyCount ? `Saved keys: ${keyCount}. (Last4 only, never re-viewable)` : 'No keys saved yet.';
+  } catch (e) {
+    keysHint.textContent = `Settings unavailable: ${e.message}`;
+  }
+}
+
+function setTradingUi(on) {
+  tradingState.textContent = on ? 'ON' : 'OFF';
+  tradingState.classList.toggle('on', on);
+  tradingState.classList.toggle('off', !on);
+  btnTradingToggle.textContent = on ? 'Disable trading' : 'Enable trading';
 }
 
 function clearTradesTable() {
@@ -321,8 +397,63 @@ btnApple.addEventListener('click', () => (window.location.href = '/v1/auth/apple
 btnLogout.addEventListener('click', async () => {
   try { await fetch('/v1/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
   await loadMe();
+  settingsHint.textContent = 'Login to configure keys and risk limits.';
   clearTradesTable();
   resetOverlays();
+});
+
+btnSaveKey.addEventListener('click', async () => {
+  try {
+    setStatus('Saving key…');
+    const payload = {
+      exchange: 'BITGET',
+      label: (keyLabel.value || '').trim() || undefined,
+      apiKey: (apiKey.value || '').trim(),
+      apiSecret: (apiSecret.value || '').trim(),
+      passphrase: (apiPass.value || '').trim() || undefined,
+      withdrawEnabled: false,
+    };
+    const j = await apiJson('POST', '/v1/exchange-keys', payload);
+    apiKey.value = '';
+    apiSecret.value = '';
+    apiPass.value = '';
+    keysHint.textContent = `Saved. Key last4: ${j?.key?.apiKeyLast4 || '****'}. (Cannot be shown again)`;
+    await loadSettings();
+    setStatus('Saved');
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
+
+btnReloadKeys.addEventListener('click', async () => {
+  await loadSettings();
+});
+
+btnSaveRisk.addEventListener('click', async () => {
+  try {
+    setStatus('Saving risk…');
+    await apiJson('PUT', '/v1/settings/risk', {
+      maxDailyLossUsd: riskDaily.value,
+      maxOpenExposureUsd: riskExposure.value,
+      maxConcurrentPositions: riskPositions.value,
+    });
+    await loadSettings();
+    setStatus('Saved');
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
+
+btnTradingToggle.addEventListener('click', async () => {
+  try {
+    const next = tradingState.textContent !== 'ON';
+    setStatus(next ? 'Enabling trading…' : 'Disabling trading…');
+    const j = await apiJson('PUT', '/v1/settings/trading', { tradingEnabled: next });
+    setTradingUi(Boolean(j?.tradingEnabled));
+    setStatus('Saved');
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
 });
 
 // Tabs (visual only for now)
@@ -334,7 +465,7 @@ for (const b of document.querySelectorAll('.tab')) {
 }
 
 initChart();
-loadMe().finally(() => {
+loadSettings().finally(() => {
   loadCandles().catch((e) => setStatus(`Error: ${e.message}`));
 });
 
