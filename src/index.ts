@@ -5,6 +5,10 @@ import { logger } from './utils/logger.js';
 import { initRouter } from './router.js';
 import { setDiscordClient } from './streams/bitget.js';  // ✅ 추가
 
+if (!CONFIG.DISCORD_TOKEN) {
+  throw new Error('DISCORD_TOKEN 누락');
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,

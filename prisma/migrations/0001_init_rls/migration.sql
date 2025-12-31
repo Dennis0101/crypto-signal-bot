@@ -18,9 +18,8 @@ DECLARE
   t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'User',
-    'OAuthAccount',
-    'Session',
+    -- Auth tables are server-only and must be readable before userId is known.
+    -- Keep them OUT of RLS to avoid insecure bypasses.
     'ExchangeKey',
     'RiskLimit',
     'TradingHalt',
@@ -33,19 +32,6 @@ BEGIN
     EXECUTE format('ALTER TABLE "%s" FORCE ROW LEVEL SECURITY;', t);
   END LOOP;
 END $$;
-
--- Users: only self
-CREATE POLICY user_is_self_select ON "User"
-  FOR SELECT USING (id = app_current_user_id());
-CREATE POLICY user_is_self_update ON "User"
-  FOR UPDATE USING (id = app_current_user_id()) WITH CHECK (id = app_current_user_id());
-
--- Child tables with userId: only rows owned by current user
-CREATE POLICY oauthaccount_owner_all ON "OAuthAccount"
-  FOR ALL USING ("userId" = app_current_user_id()) WITH CHECK ("userId" = app_current_user_id());
-
-CREATE POLICY session_owner_all ON "Session"
-  FOR ALL USING ("userId" = app_current_user_id()) WITH CHECK ("userId" = app_current_user_id());
 
 CREATE POLICY exchangekey_owner_all ON "ExchangeKey"
   FOR ALL USING ("userId" = app_current_user_id()) WITH CHECK ("userId" = app_current_user_id());
