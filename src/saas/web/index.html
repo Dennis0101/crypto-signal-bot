@@ -3,232 +3,203 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crypto Futures AI Trading</title>
+    <title>Trading</title>
     <link rel="stylesheet" href="/_app/styles.css" />
   </head>
   <body>
     <div class="app">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-dot"></div>
-          <div class="brand-text">
-            <div class="brand-title">Trading</div>
-            <div class="brand-sub">Security-first • Stop on uncertainty</div>
+      <header class="top">
+        <div class="top-left">
+          <div class="logo">
+            <div class="logo-dot"></div>
+            <div class="logo-text">
+              <div class="logo-title">Trading</div>
+              <div class="logo-sub">stop on uncertainty</div>
+            </div>
           </div>
         </div>
-        <div class="topbar-right">
-          <div class="user-pill" id="userPill">
-            <div class="user-pill-dot"></div>
-            <div class="user-pill-text" id="userText">Not logged in</div>
+
+        <div class="top-center">
+          <input id="symbolInput" class="ctl input mono" value="BTCUSDT" spellcheck="false" />
+          <select id="tfSelect" class="ctl select">
+            <option>5s</option>
+            <option>15s</option>
+            <option>30s</option>
+            <option selected>1m</option>
+            <option>3m</option>
+            <option>5m</option>
+            <option>15m</option>
+            <option>30m</option>
+            <option>1h</option>
+            <option>4h</option>
+            <option>1d</option>
+            <option>1w</option>
+            <option>1M</option>
+            <option>1y</option>
+          </select>
+          <select id="typeSelect" class="ctl select">
+            <option selected value="candles">Candles</option>
+            <option value="heikin">Heikin</option>
+            <option value="bars">Bars</option>
+          </select>
+
+          <button class="btn" id="btnLoad">Load</button>
+          <button class="btn ghost" id="btnFit">Fit</button>
+        </div>
+
+        <div class="top-right">
+          <div class="chip" id="userPill">
+            <div class="chip-dot"></div>
+            <div class="chip-text" id="userText">Not logged in</div>
           </div>
           <button class="btn ghost" id="btnGoogle">Google</button>
           <button class="btn ghost" id="btnApple">Apple</button>
           <button class="btn danger" id="btnLogout" style="display:none;">Logout</button>
+          <button class="btn ghost" id="btnDrawer" aria-label="Open drawer">Menu</button>
         </div>
       </header>
 
-      <main class="layout">
-        <aside class="sidebar">
-          <section class="panel">
-            <div class="panel-title">Market</div>
-            <div class="field">
-              <label>Symbol</label>
-              <input id="symbolInput" class="input" value="BTCUSDT" spellcheck="false" />
-              <div class="hint">Tip: try ETHUSDT, SOLUSDT</div>
+      <main class="stage">
+        <div class="chart-shell">
+          <div class="chart-hud">
+            <div class="hud-left">
+              <div class="sym" id="symbolPill">BTCUSDT</div>
+              <div class="sep"></div>
+              <div class="muted" id="statusText">Idle</div>
             </div>
-            <div class="row">
-              <div class="field">
-                <label>Timeframe</label>
-                <select id="tfSelect" class="select">
-                  <option>5s</option>
-                  <option>15s</option>
-                  <option>30s</option>
-                  <option selected>1m</option>
-                  <option>3m</option>
-                  <option>5m</option>
-                  <option>15m</option>
-                  <option>30m</option>
-                  <option>1h</option>
-                  <option>4h</option>
-                  <option>1d</option>
-                  <option>1w</option>
-                  <option>1M</option>
-                  <option>1y</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Type</label>
-                <select id="typeSelect" class="select">
-                  <option selected value="candles">Candles</option>
-                  <option value="heikin">Heikin Ashi</option>
-                  <option value="bars">Bars</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn" id="btnLoad">Load</button>
-              <button class="btn ghost" id="btnFit">Fit</button>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-title">Overlays</div>
-            <div class="check">
-              <input type="checkbox" id="chkTrades" checked />
-              <label for="chkTrades">Trades (entries/exits)</label>
-            </div>
-            <div class="check">
-              <input type="checkbox" id="chkLines" checked />
-              <label for="chkLines">Entry → Exit lines</label>
-            </div>
-            <div class="divider"></div>
-            <div class="tabs">
-              <button class="tab active" data-tab="ind">Indicators</button>
-              <button class="tab" data-tab="osc">Oscillators</button>
-              <button class="tab" data-tab="draw">Drawing</button>
-              <button class="tab" data-tab="strat">Strategies</button>
-            </div>
-            <div class="tab-body" id="tabBody">
-              <div class="list">
-                <button class="list-item" disabled>EMA (coming soon)</button>
-                <button class="list-item" disabled>VWAP (coming soon)</button>
-                <button class="list-item" disabled>Volume profile (coming soon)</button>
-              </div>
-              <div class="footnote">
-                Visual clarity first. We add tools only when they’re safe & explainable.
-              </div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-title">Settings</div>
-            <div class="hint" id="settingsHint">Login to configure keys and risk limits.</div>
-
-            <div class="divider"></div>
-
-            <div class="field">
-              <label>Trading</label>
-              <div class="row">
-                <button class="btn ghost" id="btnTradingToggle" disabled>Enable trading</button>
-                <div class="pill" id="tradingState">OFF</div>
-              </div>
-              <div class="hint">Safety-first: trading is off by default.</div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="panel-title" style="margin-top:0;">Exchange key (Bitget)</div>
-            <div class="field">
-              <label>Label</label>
-              <input id="keyLabel" class="input" placeholder="Main account" />
-            </div>
-            <div class="field">
-              <label>API Key</label>
-              <input id="apiKey" class="input" placeholder="will never be shown again" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label>API Secret</label>
-              <input id="apiSecret" class="input" placeholder="will never be shown again" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label>Passphrase (optional)</label>
-              <input id="apiPass" class="input" placeholder="if your exchange requires it" autocomplete="off" />
-            </div>
-            <div class="row">
-              <button class="btn" id="btnSaveKey" disabled>Save key</button>
-              <button class="btn ghost" id="btnReloadKeys" disabled>Refresh</button>
-            </div>
-            <div class="hint" id="keysHint">Withdraw permission must be disabled.</div>
-
-            <div class="divider"></div>
-
-            <div class="panel-title" style="margin-top:0;">Risk limits</div>
-            <div class="field">
-              <label>Max daily loss (USD)</label>
-              <input id="riskDaily" class="input" value="100" />
-            </div>
-            <div class="field">
-              <label>Max open exposure (USD)</label>
-              <input id="riskExposure" class="input" value="200" />
-            </div>
-            <div class="field">
-              <label>Max concurrent positions</label>
-              <input id="riskPositions" class="input" value="1" />
-            </div>
-            <button class="btn" id="btnSaveRisk" disabled>Save risk limits</button>
-
-            <div class="divider"></div>
-
-            <div class="panel-title" style="margin-top:0;">Automation (paper)</div>
-            <div class="hint">Runs analysis on backend. If uncertain → NO TRADE.</div>
-            <div class="row">
-              <button class="btn" id="btnExecSignal" disabled>Execute current signal</button>
-              <button class="btn ghost" id="btnHalt" disabled>Halt</button>
-            </div>
-            <div class="hint" id="execHint">Uses idempotency to avoid duplicates.</div>
-
-            <div class="divider"></div>
-
-            <div class="panel-title" style="margin-top:0;">Live (VIP, queued)</div>
-            <div class="hint">Queued for the worker. Disabled by default for safety.</div>
-            <div class="row">
-              <button class="btn ghost" id="btnLiveExec" disabled>Queue live execute</button>
-              <button class="btn ghost" id="btnRefreshTasks" disabled>Tasks</button>
-            </div>
-            <div class="row" style="margin-top:10px;">
-              <button class="btn ghost" id="btnVerifyKey" disabled>Verify key</button>
-              <div class="pill off" id="keyVerifyState">UNVERIFIED</div>
-            </div>
-            <div class="hint" id="tasksHint">No tasks.</div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-title">Trust</div>
-            <div class="trust">
-              <div class="trust-item">
-                <div class="trust-k">No key re-view</div>
-                <div class="trust-v">API keys can’t be retrieved.</div>
-              </div>
-              <div class="trust-item">
-                <div class="trust-k">Stop on uncertainty</div>
-                <div class="trust-v">If unclear → no trade.</div>
-              </div>
-              <div class="trust-item">
-                <div class="trust-k">Explainability</div>
-                <div class="trust-v">Every trade has a “why”.</div>
-              </div>
-            </div>
-          </section>
-        </aside>
-
-        <section class="main">
-          <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="symbol-pill" id="symbolPill">BTCUSDT</div>
-              <div class="status" id="statusText">Idle</div>
-            </div>
-            <div id="chart" class="chart"></div>
-          </div>
-
-          <div class="bottom">
-            <div class="bottom-head">
-              <div class="bottom-title">Trades</div>
-              <div class="bottom-sub" id="tradesHint">Login to see your trade history overlays.</div>
-            </div>
-            <div class="table" id="tradesTable">
-              <div class="row row-head">
-                <div>Time</div>
-                <div>Symbol</div>
-                <div>Side</div>
-                <div>Entry</div>
-                <div>Exit</div>
-                <div>PnL</div>
-                <div>Why</div>
-              </div>
-              <div class="row row-empty" id="tradesEmpty">No data.</div>
+            <div class="hud-right">
+              <label class="toggle">
+                <input type="checkbox" id="chkTrades" checked />
+                <span>Trades</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="chkLines" checked />
+                <span>Lines</span>
+              </label>
             </div>
           </div>
+          <div id="chart" class="chart"></div>
+        </div>
+
+        <section class="auto-card" aria-label="Automation">
+          <div class="auto-top">
+            <div class="auto-title">Auto</div>
+            <div class="auto-pill" id="autoState">OFF</div>
+          </div>
+
+          <div class="signal">
+            <div class="signal-main">
+              <div class="signal-dir" id="sigDir">—</div>
+              <div class="signal-conf" id="sigConf">—</div>
+            </div>
+            <div class="signal-sub" id="sigWhy">Waiting…</div>
+          </div>
+
+          <div class="auto-actions">
+            <button class="btn ghost" id="btnAnalyze">Analyze</button>
+            <button class="btn" id="btnExecSignal" disabled>Execute (paper)</button>
+            <button class="btn ghost" id="btnLiveExec" disabled>Queue (live)</button>
+            <button class="btn danger" id="btnHalt" disabled>Halt</button>
+          </div>
+
+          <div class="auto-foot" id="execHint">No hidden behavior. If unclear → no trade.</div>
         </section>
+
+        <div class="backdrop" id="backdrop" hidden></div>
+        <aside class="drawer" id="drawer" aria-label="Drawer" hidden>
+          <div class="drawer-head">
+            <div class="drawer-title">Control</div>
+            <button class="btn ghost" id="btnCloseDrawer">Close</button>
+          </div>
+
+          <div class="drawer-tabs">
+            <button class="tab active" data-tab="settings">Settings</button>
+            <button class="tab" data-tab="trades">Trades</button>
+            <button class="tab" data-tab="tasks">Tasks</button>
+          </div>
+
+          <div class="drawer-body">
+            <section class="tab-panel" data-panel="settings">
+              <div class="hint" id="settingsHint">Login to configure keys and risk.</div>
+
+              <div class="section">
+                <div class="section-title">Trading switch</div>
+                <div class="row">
+                  <button class="btn ghost" id="btnTradingToggle" disabled>Enable trading</button>
+                  <div class="pill off" id="tradingState">OFF</div>
+                </div>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Bitget key</div>
+                <div class="grid2">
+                  <div class="field">
+                    <label>Label</label>
+                    <input id="keyLabel" class="input" placeholder="Main account" />
+                  </div>
+                  <div class="field">
+                    <label>Passphrase</label>
+                    <input id="apiPass" class="input" placeholder="optional" autocomplete="off" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>API Key</label>
+                  <input id="apiKey" class="input mono" placeholder="never shown again" autocomplete="off" />
+                </div>
+                <div class="field">
+                  <label>API Secret</label>
+                  <input id="apiSecret" class="input mono" placeholder="never shown again" autocomplete="off" />
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnSaveKey" disabled>Save</button>
+                  <button class="btn ghost" id="btnReloadKeys" disabled>Refresh</button>
+                  <button class="btn ghost" id="btnVerifyKey" disabled>Verify</button>
+                  <div class="pill off" id="keyVerifyState">UNVERIFIED</div>
+                </div>
+                <div class="hint" id="keysHint">Withdraw permission must be disabled.</div>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Risk limits</div>
+                <div class="grid3">
+                  <div class="field">
+                    <label>Daily loss (USD)</label>
+                    <input id="riskDaily" class="input" value="100" />
+                  </div>
+                  <div class="field">
+                    <label>Exposure (USD)</label>
+                    <input id="riskExposure" class="input" value="200" />
+                  </div>
+                  <div class="field">
+                    <label>Positions</label>
+                    <input id="riskPositions" class="input" value="1" />
+                  </div>
+                </div>
+                <button class="btn" id="btnSaveRisk" disabled>Save risk</button>
+              </div>
+            </section>
+
+            <section class="tab-panel" data-panel="trades" hidden>
+              <div class="list-head">
+                <div class="list-title">History</div>
+                <div class="muted" id="tradesHint">Login to see your trades.</div>
+              </div>
+              <div class="trade-list" id="tradesList">
+                <div class="empty" id="tradesEmpty">No data.</div>
+              </div>
+            </section>
+
+            <section class="tab-panel" data-panel="tasks" hidden>
+              <div class="list-head">
+                <div class="list-title">Queue</div>
+                <button class="btn ghost" id="btnRefreshTasks" disabled>Refresh</button>
+              </div>
+              <div class="task-list" id="taskList">
+                <div class="empty" id="tasksHint">No tasks.</div>
+              </div>
+            </section>
+          </div>
+        </aside>
       </main>
     </div>
 
