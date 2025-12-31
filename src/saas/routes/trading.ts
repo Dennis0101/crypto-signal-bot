@@ -6,6 +6,7 @@ import { paperOpenPosition, paperClosePosition } from '../trading/paper.js';
 import { getRiskSnapshot } from '../trading/risk.js';
 import { getUserTier } from '../tier/tier.js';
 import { confidenceThresholdForTier } from '../ai/strictness.js';
+import { enqueueTask, listTasks } from '../tasks/queue.js';
 import { fetchCandles, fetchRecentTrades } from '../../clients/bitget.js';
 import { calcBaseFeatures } from '../../indicators/calc.js';
 import { buildCVDandProfile } from '../../indicators/cvd.js';
@@ -37,6 +38,13 @@ const ExecSignalSchema = z.object({
 export function createRouter() {
   const r = Router();
   r.use(requireAuth);
+
+  r.get('/tasks', async (req: AuthedRequest, res) => {
+    const userId = req.userId!;
+    const limit = Number((req.query as any)?.limit ?? 50);
+    const tasks = await listTasks(userId, limit);
+    res.json({ tasks });
+  });
 
   r.get('/status', async (req: AuthedRequest, res) => {
     const userId = req.userId!;
@@ -163,6 +171,30 @@ export function createRouter() {
       }
       res.status(400).json({ error: { code: 'EXECUTE_FAILED', message: String(e?.message ?? e) } });
     }
+  });
+
+  // Live execution is queued (restart-safe). Worker must be running.
+  // Live is disabled by default and must be explicitly enabled server-side.
+  r.post('/live/execute-signal', async (req: AuthedRequest, res) => {
+    const userId = req.userId!;
+    const halted = await isUserHalted(userId);
+    if (halted.halted) return res.status(423).json({ error: { code: 'HALTED', message: 'Trading halted', reasons: halted.reasons } });
+
+    const tier = await getUserTier(userId);
+    if (tier !== 'VIP') {
+      return res.status(402).json({ error: { code: 'UPGRADE_REQUIRED', message: 'Live execution requires VIP.' } });
+    }
+
+    const body = ExecSignalSchema.parse(req.body ?? {});
+    const task = await enqueueTask(userId, 'LIVE_EXECUTE_SIGNAL', {
+      symbol: body.symbol,
+      tf: body.tf,
+      orderUsd: body.orderUsd ?? 100,
+      leverage: body.leverage ?? 5,
+      idempotencyKey: body.idempotencyKey,
+      requestedAt: new Date().toISOString(),
+    });
+    res.status(202).json({ queued: true, task });
   });
 
   return r;

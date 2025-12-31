@@ -166,6 +166,16 @@
               <button class="btn ghost" id="btnHalt" disabled>Halt</button>
             </div>
             <div class="hint" id="execHint">Uses idempotency to avoid duplicates.</div>
+
+            <div class="divider"></div>
+
+            <div class="panel-title" style="margin-top:0;">Live (VIP, queued)</div>
+            <div class="hint">Queued for the worker. Disabled by default for safety.</div>
+            <div class="row">
+              <button class="btn ghost" id="btnLiveExec" disabled>Queue live execute</button>
+              <button class="btn ghost" id="btnRefreshTasks" disabled>Tasks</button>
+            </div>
+            <div class="hint" id="tasksHint">No tasks.</div>
           </section>
 
           <section class="panel">

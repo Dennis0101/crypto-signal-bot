@@ -49,6 +49,13 @@ enum HaltScope {
   SYSTEM
 }
 
+enum TaskStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -72,6 +79,7 @@ model User {
   tradeEvents  TradeEvent[]
   halts        TradingHalt[]
   auditLogs    AuditLog[]
+  tasks        ExecutionTask[]
 
   @@index([createdAt])
 }
@@ -258,6 +266,28 @@ model TradeEvent {
 
   @@index([userId, createdAt])
   @@index([tradeId, createdAt])
+}
+
+model ExecutionTask {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   String  // e.g. LIVE_EXECUTE_SIGNAL, LIVE_OPEN, LIVE_CLOSE
+  status TaskStatus @default(PENDING)
+
+  attempts Int @default(0)
+  leasedUntil DateTime?
+
+  payloadJson String
+  resultJson  String?
+  lastError   String?
+
+  @@index([userId, createdAt])
+  @@index([status, leasedUntil])
 }
 
 model AuditLog {

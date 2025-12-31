@@ -43,6 +43,9 @@ const tradingState = el('tradingState');
 const btnExecSignal = el('btnExecSignal');
 const btnHalt = el('btnHalt');
 const execHint = el('execHint');
+const btnLiveExec = el('btnLiveExec');
+const btnRefreshTasks = el('btnRefreshTasks');
+const tasksHint = el('tasksHint');
 
 function setStatus(s) {
   statusText.textContent = s;
@@ -241,6 +244,8 @@ async function loadMe() {
       btnTradingToggle.disabled = true;
       btnExecSignal.disabled = true;
       btnHalt.disabled = true;
+      btnLiveExec.disabled = true;
+      btnRefreshTasks.disabled = true;
       tradingState.textContent = 'OFF';
       tradingState.classList.remove('on');
       tradingState.classList.add('off');
@@ -257,6 +262,8 @@ async function loadMe() {
     btnTradingToggle.disabled = false;
     btnExecSignal.disabled = false;
     btnHalt.disabled = false;
+    btnLiveExec.disabled = false;
+    btnRefreshTasks.disabled = false;
     return u;
   } catch {
     return null;
@@ -504,6 +511,42 @@ btnHalt.addEventListener('click', async () => {
     setStatus(`Error: ${e.message}`);
   }
 });
+
+async function refreshTasks() {
+  try {
+    const j = await apiGet('/v1/trading/tasks?limit=5');
+    const tasks = j?.tasks || [];
+    if (!tasks.length) {
+      tasksHint.textContent = 'No tasks.';
+      return;
+    }
+    const t = tasks[0];
+    tasksHint.textContent = `${t.status} • ${t.type} • attempts=${t.attempts}${t.lastError ? ` • ${t.lastError}` : ''}`;
+  } catch (e) {
+    tasksHint.textContent = `Tasks unavailable: ${e.message}`;
+  }
+}
+
+btnLiveExec.addEventListener('click', async () => {
+  try {
+    const symbol = symbolInput.value.trim().toUpperCase();
+    const tf = tfSelect.value;
+    setStatus('Queueing live…');
+    await apiJson('POST', '/v1/trading/live/execute-signal', {
+      symbol,
+      tf: tf === '5s' || tf === '15s' || tf === '30s' ? '1m' : tf,
+      orderUsd: 100,
+      leverage: 5,
+      idempotencyKey: makeIdempotency('live_exec'),
+    });
+    setStatus('Queued');
+    await refreshTasks();
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
+
+btnRefreshTasks.addEventListener('click', () => refreshTasks());
 
 // Tabs (visual only for now)
 for (const b of document.querySelectorAll('.tab')) {
