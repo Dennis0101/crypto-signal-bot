@@ -1,0 +1,47 @@
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { logger } from '../utils/logger.js';
+import { authOptional } from './http/middleware.js';
+
+import { createRouter as createAuthRouter } from './routes/auth.js';
+import { createRouter as createKeysRouter } from './routes/keys.js';
+import { createRouter as createMarketRouter } from './routes/market.js';
+import { createRouter as createTradesRouter } from './routes/trades.js';
+
+const app = express();
+
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP will be set by web app when bundled
+}));
+app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
+
+app.use(express.json({ limit: '256kb' }));
+app.use(cookieParser());
+
+app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
+app.use(authOptional);
+
+// Serve web UI (single-binary SaaS feel)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const webDir = path.join(__dirname, 'web');
+app.use('/_app', express.static(webDir, { maxAge: '1h', etag: true }));
+app.get('/_app/styles.css', (_req, res) => res.sendFile(path.join(webDir, 'styles.css')));
+app.get('/_app/app.js', (_req, res) => res.sendFile(path.join(webDir, 'app.js')));
+app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
+
+app.use('/v1/auth', createAuthRouter());
+app.use('/v1/exchange-keys', createKeysRouter());
+app.use('/v1/market', createMarketRouter());
+app.use('/v1/trades', createTradesRouter());
+
+const port = Number(process.env.SAAS_PORT || 8080);
+app.listen(port, () => logger.info({ port }, 'SaaS API listening'));
+

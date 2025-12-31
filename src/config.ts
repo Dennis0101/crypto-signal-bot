@@ -35,6 +35,8 @@ export const CONFIG = {
   }
 };
 
-if (!CONFIG.DISCORD_TOKEN) {
-  throw new Error('DISCORD_TOKEN 누락');
-}
+/**
+ * NOTE:
+ * - SaaS API server must be able to run without Discord.
+ * - Validate Discord-only requirements in the bot entrypoint (`src/index.ts`).
+ */
