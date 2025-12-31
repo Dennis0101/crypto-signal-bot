@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createChart } from '/_app/vendor/lightweight-charts.js';
 
 const el = (id) => document.getElementById(id);

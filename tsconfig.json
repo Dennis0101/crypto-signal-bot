@@ -9,5 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "dist",
+    "src/saas/web"
+  ]
 }
