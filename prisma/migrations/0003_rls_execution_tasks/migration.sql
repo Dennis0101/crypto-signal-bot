@@ -1,10 +1,9 @@
--- Enable RLS for ExecutionTask and apply per-user policy.
--- Assumes Prisma has created "ExecutionTask" table.
-
-ALTER TABLE "ExecutionTask" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "ExecutionTask" FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY executiontask_owner_all ON "ExecutionTask"
-  FOR ALL USING ("userId" = app_current_user_id())
-  WITH CHECK ("userId" = app_current_user_id());
+-- ExecutionTask is an internal server queue table.
+--
+-- We intentionally do NOT enable RLS here because the worker must be able to
+-- lease tasks across *all* users before it knows which user context to set.
+--
+-- Data isolation is enforced at the API layer:
+-- - API endpoints list/create tasks only within a user-scoped transaction.
+-- - Worker sets app.user_id when reading/writing any user-owned RLS tables.
 

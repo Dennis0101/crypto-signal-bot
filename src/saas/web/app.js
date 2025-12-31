@@ -46,6 +46,8 @@ const execHint = el('execHint');
 const btnLiveExec = el('btnLiveExec');
 const btnRefreshTasks = el('btnRefreshTasks');
 const tasksHint = el('tasksHint');
+const btnVerifyKey = el('btnVerifyKey');
+const keyVerifyState = el('keyVerifyState');
 
 function setStatus(s) {
   statusText.textContent = s;
@@ -246,6 +248,7 @@ async function loadMe() {
       btnHalt.disabled = true;
       btnLiveExec.disabled = true;
       btnRefreshTasks.disabled = true;
+      btnVerifyKey.disabled = true;
       tradingState.textContent = 'OFF';
       tradingState.classList.remove('on');
       tradingState.classList.add('off');
@@ -264,6 +267,7 @@ async function loadMe() {
     btnHalt.disabled = false;
     btnLiveExec.disabled = false;
     btnRefreshTasks.disabled = false;
+    btnVerifyKey.disabled = false;
     return u;
   } catch {
     return null;
@@ -547,6 +551,20 @@ btnLiveExec.addEventListener('click', async () => {
 });
 
 btnRefreshTasks.addEventListener('click', () => refreshTasks());
+
+btnVerifyKey.addEventListener('click', async () => {
+  try {
+    setStatus('Queueing verify…');
+    await apiJson('POST', '/v1/trading/live/verify-key', {});
+    setStatus('Queued');
+    keyVerifyState.textContent = 'PENDING';
+    keyVerifyState.classList.add('on');
+    keyVerifyState.classList.remove('off');
+    await refreshTasks();
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
 
 // Tabs (visual only for now)
 for (const b of document.querySelectorAll('.tab')) {

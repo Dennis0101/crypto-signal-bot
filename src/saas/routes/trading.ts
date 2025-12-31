@@ -197,6 +197,19 @@ export function createRouter() {
     res.status(202).json({ queued: true, task });
   });
 
+  r.post('/live/verify-key', async (req: AuthedRequest, res) => {
+    const userId = req.userId!;
+    const halted = await isUserHalted(userId);
+    if (halted.halted) return res.status(423).json({ error: { code: 'HALTED', message: 'Trading halted', reasons: halted.reasons } });
+
+    const tier = await getUserTier(userId);
+    if (tier === 'BASIC') {
+      return res.status(402).json({ error: { code: 'UPGRADE_REQUIRED', message: 'Key verification requires Pro or VIP.' } });
+    }
+    const task = await enqueueTask(userId, 'LIVE_VERIFY_KEY', { requestedAt: new Date().toISOString() });
+    res.status(202).json({ queued: true, task });
+  });
+
   return r;
 }
 
