@@ -87,6 +87,84 @@ export async function bitgetPrivateAccountOverview(baseUrl: string, creds: Bitge
   });
 }
 
+export async function bitgetPrivateAccounts(baseUrl: string, creds: BitgetCreds) {
+  return await bitgetRequest<any>({
+    baseUrl,
+    creds,
+    method: 'GET',
+    path: '/api/v2/mix/account/accounts',
+    query: { productType: 'usdt-futures' },
+  });
+}
+
+export async function bitgetSetMarginMode(
+  baseUrl: string,
+  creds: BitgetCreds,
+  args: { symbol: string; marginCoin: string; marginMode: 'isolated' | 'crossed' }
+) {
+  return await bitgetRequest<any>({
+    baseUrl,
+    creds,
+    method: 'POST',
+    path: '/api/v2/mix/account/set-margin-mode',
+    body: {
+      symbol: args.symbol,
+      productType: 'usdt-futures',
+      marginCoin: args.marginCoin,
+      marginMode: args.marginMode,
+    },
+  });
+}
+
+export async function bitgetSetLeverage(
+  baseUrl: string,
+  creds: BitgetCreds,
+  args: { symbol: string; marginCoin: string; leverage: number; holdSide: 'long' | 'short' }
+) {
+  return await bitgetRequest<any>({
+    baseUrl,
+    creds,
+    method: 'POST',
+    path: '/api/v2/mix/account/set-leverage',
+    body: {
+      symbol: args.symbol,
+      productType: 'usdt-futures',
+      marginCoin: args.marginCoin,
+      leverage: String(args.leverage),
+      holdSide: args.holdSide,
+    },
+  });
+}
+
+export async function bitgetOrderDetail(
+  baseUrl: string,
+  creds: BitgetCreds,
+  args: { symbol: string; orderId?: string; clientOid?: string }
+) {
+  return await bitgetRequest<any>({
+    baseUrl,
+    creds,
+    method: 'GET',
+    path: '/api/v2/mix/order/detail',
+    query: {
+      symbol: args.symbol,
+      productType: 'usdt-futures',
+      orderId: args.orderId,
+      clientOid: args.clientOid,
+    },
+  });
+}
+
+export async function bitgetAllPositions(baseUrl: string, creds: BitgetCreds) {
+  return await bitgetRequest<any>({
+    baseUrl,
+    creds,
+    method: 'GET',
+    path: '/api/v2/mix/position/all-position',
+    query: { productType: 'usdt-futures' },
+  });
+}
+
 export async function bitgetPlaceOrder(baseUrl: string, creds: BitgetCreds, body: any) {
   // WARNING: only call when LIVE_ORDER_SEND=true.
   return await bitgetRequest<any>({

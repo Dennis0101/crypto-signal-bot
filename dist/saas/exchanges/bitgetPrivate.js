@@ -66,6 +66,67 @@ export async function bitgetPrivateAccountOverview(baseUrl, creds) {
         query: { productType: 'usdt-futures' },
     });
 }
+export async function bitgetPrivateAccounts(baseUrl, creds) {
+    return await bitgetRequest({
+        baseUrl,
+        creds,
+        method: 'GET',
+        path: '/api/v2/mix/account/accounts',
+        query: { productType: 'usdt-futures' },
+    });
+}
+export async function bitgetSetMarginMode(baseUrl, creds, args) {
+    return await bitgetRequest({
+        baseUrl,
+        creds,
+        method: 'POST',
+        path: '/api/v2/mix/account/set-margin-mode',
+        body: {
+            symbol: args.symbol,
+            productType: 'usdt-futures',
+            marginCoin: args.marginCoin,
+            marginMode: args.marginMode,
+        },
+    });
+}
+export async function bitgetSetLeverage(baseUrl, creds, args) {
+    return await bitgetRequest({
+        baseUrl,
+        creds,
+        method: 'POST',
+        path: '/api/v2/mix/account/set-leverage',
+        body: {
+            symbol: args.symbol,
+            productType: 'usdt-futures',
+            marginCoin: args.marginCoin,
+            leverage: String(args.leverage),
+            holdSide: args.holdSide,
+        },
+    });
+}
+export async function bitgetOrderDetail(baseUrl, creds, args) {
+    return await bitgetRequest({
+        baseUrl,
+        creds,
+        method: 'GET',
+        path: '/api/v2/mix/order/detail',
+        query: {
+            symbol: args.symbol,
+            productType: 'usdt-futures',
+            orderId: args.orderId,
+            clientOid: args.clientOid,
+        },
+    });
+}
+export async function bitgetAllPositions(baseUrl, creds) {
+    return await bitgetRequest({
+        baseUrl,
+        creds,
+        method: 'GET',
+        path: '/api/v2/mix/position/all-position',
+        query: { productType: 'usdt-futures' },
+    });
+}
 export async function bitgetPlaceOrder(baseUrl, creds, body) {
     // WARNING: only call when LIVE_ORDER_SEND=true.
     return await bitgetRequest({

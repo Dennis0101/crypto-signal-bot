@@ -525,7 +525,18 @@ async function refreshTasks() {
       return;
     }
     const t = tasks[0];
-    tasksHint.textContent = `${t.status} • ${t.type} • attempts=${t.attempts}${t.lastError ? ` • ${t.lastError}` : ''}`;
+    let extra = '';
+    if (t.status === 'SUCCEEDED' && t.resultJson) {
+      try {
+        const r = JSON.parse(t.resultJson);
+        if (r?.action) extra = ` • ${r.action}`;
+        if (r?.dryRun) extra += ' • dry-run';
+        if (r?.note) extra += ` • ${String(r.note).slice(0, 60)}`;
+      } catch {
+        // ignore
+      }
+    }
+    tasksHint.textContent = `${t.status} • ${t.type} • attempts=${t.attempts}${extra}${t.lastError ? ` • ${t.lastError}` : ''}`;
   } catch (e) {
     tasksHint.textContent = `Tasks unavailable: ${e.message}`;
   }
