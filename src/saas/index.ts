@@ -2,6 +2,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { logger } from '../utils/logger.js';
 import { authOptional } from './http/middleware.js';
 
@@ -25,6 +27,15 @@ app.use(cookieParser());
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
 app.use(authOptional);
+
+// Serve web UI (single-binary SaaS feel)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const webDir = path.join(__dirname, 'web');
+app.use('/_app', express.static(webDir, { maxAge: '1h', etag: true }));
+app.get('/_app/styles.css', (_req, res) => res.sendFile(path.join(webDir, 'styles.css')));
+app.get('/_app/app.js', (_req, res) => res.sendFile(path.join(webDir, 'app.js')));
+app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
 
 app.use('/v1/auth', createAuthRouter());
 app.use('/v1/exchange-keys', createKeysRouter());

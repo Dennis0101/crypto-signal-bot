@@ -12,6 +12,9 @@ function base64url(buf) {
 function sha256Hex(raw) {
     return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 }
+export function sessionTokenSha256(rawToken) {
+    return sha256Hex(rawToken);
+}
 export function getSessionTokenFromReq(req) {
     const v = req.cookies?.[COOKIE_NAME];
     if (typeof v === 'string' && v.length > 20)
@@ -62,4 +65,8 @@ export async function resolveSession(rawToken) {
     if (row.expiresAt.getTime() < Date.now())
         return null;
     return { userId: row.userId };
+}
+export async function revokeSession(rawToken) {
+    const tokenSha256 = sha256Hex(rawToken);
+    await prisma.session.deleteMany({ where: { tokenSha256 } });
 }

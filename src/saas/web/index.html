@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crypto Futures AI Trading</title>
+    <link rel="stylesheet" href="/_app/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div class="brand-text">
+            <div class="brand-title">Trading</div>
+            <div class="brand-sub">Security-first • Stop on uncertainty</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="user-pill" id="userPill">
+            <div class="user-pill-dot"></div>
+            <div class="user-pill-text" id="userText">Not logged in</div>
+          </div>
+          <button class="btn ghost" id="btnGoogle">Google</button>
+          <button class="btn ghost" id="btnApple">Apple</button>
+          <button class="btn danger" id="btnLogout" style="display:none;">Logout</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <aside class="sidebar">
+          <section class="panel">
+            <div class="panel-title">Market</div>
+            <div class="field">
+              <label>Symbol</label>
+              <input id="symbolInput" class="input" value="BTCUSDT" spellcheck="false" />
+              <div class="hint">Tip: try ETHUSDT, SOLUSDT</div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Timeframe</label>
+                <select id="tfSelect" class="select">
+                  <option>5s</option>
+                  <option>15s</option>
+                  <option>30s</option>
+                  <option selected>1m</option>
+                  <option>3m</option>
+                  <option>5m</option>
+                  <option>15m</option>
+                  <option>30m</option>
+                  <option>1h</option>
+                  <option>4h</option>
+                  <option>1d</option>
+                  <option>1w</option>
+                  <option>1M</option>
+                  <option>1y</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Type</label>
+                <select id="typeSelect" class="select">
+                  <option selected value="candles">Candles</option>
+                  <option value="heikin">Heikin Ashi</option>
+                  <option value="bars">Bars</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn" id="btnLoad">Load</button>
+              <button class="btn ghost" id="btnFit">Fit</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">Overlays</div>
+            <div class="check">
+              <input type="checkbox" id="chkTrades" checked />
+              <label for="chkTrades">Trades (entries/exits)</label>
+            </div>
+            <div class="check">
+              <input type="checkbox" id="chkLines" checked />
+              <label for="chkLines">Entry → Exit lines</label>
+            </div>
+            <div class="divider"></div>
+            <div class="tabs">
+              <button class="tab active" data-tab="ind">Indicators</button>
+              <button class="tab" data-tab="osc">Oscillators</button>
+              <button class="tab" data-tab="draw">Drawing</button>
+              <button class="tab" data-tab="strat">Strategies</button>
+            </div>
+            <div class="tab-body" id="tabBody">
+              <div class="list">
+                <button class="list-item" disabled>EMA (coming soon)</button>
+                <button class="list-item" disabled>VWAP (coming soon)</button>
+                <button class="list-item" disabled>Volume profile (coming soon)</button>
+              </div>
+              <div class="footnote">
+                Visual clarity first. We add tools only when they’re safe & explainable.
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">Trust</div>
+            <div class="trust">
+              <div class="trust-item">
+                <div class="trust-k">No key re-view</div>
+                <div class="trust-v">API keys can’t be retrieved.</div>
+              </div>
+              <div class="trust-item">
+                <div class="trust-k">Stop on uncertainty</div>
+                <div class="trust-v">If unclear → no trade.</div>
+              </div>
+              <div class="trust-item">
+                <div class="trust-k">Explainability</div>
+                <div class="trust-v">Every trade has a “why”.</div>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <section class="main">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="symbol-pill" id="symbolPill">BTCUSDT</div>
+              <div class="status" id="statusText">Idle</div>
+            </div>
+            <div id="chart" class="chart"></div>
+          </div>
+
+          <div class="bottom">
+            <div class="bottom-head">
+              <div class="bottom-title">Trades</div>
+              <div class="bottom-sub" id="tradesHint">Login to see your trade history overlays.</div>
+            </div>
+            <div class="table" id="tradesTable">
+              <div class="row row-head">
+                <div>Time</div>
+                <div>Symbol</div>
+                <div>Side</div>
+                <div>Entry</div>
+                <div>Exit</div>
+                <div>PnL</div>
+                <div>Why</div>
+              </div>
+              <div class="row row-empty" id="tradesEmpty">No data.</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/_app/app.js"></script>
+  </body>
+</html>
+

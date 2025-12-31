@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { oidcStart, oidcCallback } from '../auth/oidc.js';
 import { prisma } from '../db/rls.js';
-import { createSession, clearSessionCookie, setSessionCookie, getSessionTokenFromReq, resolveSession } from '../auth/session.js';
+import { createSession, clearSessionCookie, setSessionCookie, getSessionTokenFromReq, resolveSession, revokeSession } from '../auth/session.js';
 const ProviderSchema = z.enum(['google', 'apple']);
 const OIDC_COOKIE_PREFIX = 'oidc_';
 function oidcCookieName(provider) {
@@ -37,10 +37,7 @@ export function createRouter() {
         const raw = getSessionTokenFromReq(req);
         clearSessionCookie(res);
         if (raw) {
-            // Best-effort revoke (DB contains only hash)
-            // If prisma session table is large, consider background cleanup.
-            // We don't delete by raw token; only by hash.
-            // (hashing logic is inside resolveSession/createSession; keep consistent)
+            await revokeSession(raw).catch(() => { });
         }
         res.json({ ok: true });
     });

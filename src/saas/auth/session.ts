@@ -17,6 +17,10 @@ function sha256Hex(raw: string): string {
   return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 }
 
+export function sessionTokenSha256(rawToken: string): string {
+  return sha256Hex(rawToken);
+}
+
 export function getSessionTokenFromReq(req: Request): string | null {
   const v = (req as any).cookies?.[COOKIE_NAME];
   if (typeof v === 'string' && v.length > 20) return v;
@@ -70,5 +74,10 @@ export async function resolveSession(rawToken: string): Promise<{ userId: string
   if (!row) return null;
   if (row.expiresAt.getTime() < Date.now()) return null;
   return { userId: row.userId };
+}
+
+export async function revokeSession(rawToken: string): Promise<void> {
+  const tokenSha256 = sha256Hex(rawToken);
+  await prisma.session.deleteMany({ where: { tokenSha256 } });
 }
 
