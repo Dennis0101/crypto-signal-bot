@@ -156,6 +156,16 @@
               <input id="riskPositions" class="input" value="1" />
             </div>
             <button class="btn" id="btnSaveRisk" disabled>Save risk limits</button>
+
+            <div class="divider"></div>
+
+            <div class="panel-title" style="margin-top:0;">Automation (paper)</div>
+            <div class="hint">Runs analysis on backend. If uncertain → NO TRADE.</div>
+            <div class="row">
+              <button class="btn" id="btnExecSignal" disabled>Execute current signal</button>
+              <button class="btn ghost" id="btnHalt" disabled>Halt</button>
+            </div>
+            <div class="hint" id="execHint">Uses idempotency to avoid duplicates.</div>
           </section>
 
           <section class="panel">

@@ -13,6 +13,7 @@ import { createRouter as createMarketRouter } from './routes/market.js';
 import { createRouter as createTradesRouter } from './routes/trades.js';
 import { createRouter as createSettingsRouter } from './routes/settings.js';
 import { createRouter as createAnalysisRouter } from './routes/analysis.js';
+import { createRouter as createTradingRouter } from './routes/trading.js';
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/v1/auth', createAuthRouter());
 app.use('/v1/exchange-keys', createKeysRouter());
 app.use('/v1/settings', createSettingsRouter());
 app.use('/v1/analysis', createAnalysisRouter());
+app.use('/v1/trading', createTradingRouter());
 app.use('/v1/market', createMarketRouter());
 app.use('/v1/trades', createTradesRouter());
 

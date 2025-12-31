@@ -40,6 +40,9 @@ const riskPositions = el('riskPositions');
 
 const btnTradingToggle = el('btnTradingToggle');
 const tradingState = el('tradingState');
+const btnExecSignal = el('btnExecSignal');
+const btnHalt = el('btnHalt');
+const execHint = el('execHint');
 
 function setStatus(s) {
   statusText.textContent = s;
@@ -236,6 +239,8 @@ async function loadMe() {
       btnReloadKeys.disabled = true;
       btnSaveRisk.disabled = true;
       btnTradingToggle.disabled = true;
+      btnExecSignal.disabled = true;
+      btnHalt.disabled = true;
       tradingState.textContent = 'OFF';
       tradingState.classList.remove('on');
       tradingState.classList.add('off');
@@ -250,6 +255,8 @@ async function loadMe() {
     btnReloadKeys.disabled = false;
     btnSaveRisk.disabled = false;
     btnTradingToggle.disabled = false;
+    btnExecSignal.disabled = false;
+    btnHalt.disabled = false;
     return u;
   } catch {
     return null;
@@ -451,6 +458,48 @@ btnTradingToggle.addEventListener('click', async () => {
     const j = await apiJson('PUT', '/v1/settings/trading', { tradingEnabled: next });
     setTradingUi(Boolean(j?.tradingEnabled));
     setStatus('Saved');
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
+
+function makeIdempotency(prefix) {
+  const rnd = Math.random().toString(16).slice(2);
+  const t = Date.now().toString(16);
+  return `${prefix}_${t}_${rnd}`.slice(0, 80);
+}
+
+btnExecSignal.addEventListener('click', async () => {
+  try {
+    const symbol = symbolInput.value.trim().toUpperCase();
+    const tf = tfSelect.value;
+    setStatus('Executing…');
+    const j = await apiJson('POST', '/v1/trading/paper/execute-signal', {
+      symbol,
+      tf: tf === '5s' || tf === '15s' || tf === '30s' ? '1m' : tf, // analysis uses exchange tf best-effort
+      orderUsd: 100,
+      leverage: 5,
+      idempotencyKey: makeIdempotency('exec'),
+    });
+    if (j.action === 'NO_TRADE') {
+      execHint.textContent = `NO TRADE • tier=${j.tier} • conf=${j.decision?.confidence} • need>=${j.strictness?.confidenceThreshold}`;
+      setStatus('No trade');
+    } else {
+      execHint.textContent = `OPENED • ${j.decision?.recommend} • conf=${j.decision?.confidence} • orderId=${j.orderId}`;
+      setStatus('Opened (paper)');
+      await loadTradesOverlay(symbol);
+    }
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+});
+
+btnHalt.addEventListener('click', async () => {
+  try {
+    setStatus('Halting…');
+    await apiJson('POST', '/v1/trading/halt', { message: 'User requested halt from UI' });
+    execHint.textContent = 'HALTED. Trading will refuse execution until cleared (admin).';
+    setStatus('Halted');
   } catch (e) {
     setStatus(`Error: ${e.message}`);
   }
