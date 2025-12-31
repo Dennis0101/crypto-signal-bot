@@ -42,13 +42,36 @@ async function fetchJson(url: URL) {
 
 /** ===== Helpers ===== */
 const TF_TO_SECS: Record<string, number> = {
+  "5s": 5,
+  "15s": 15,
+  "30s": 30,
   "1m": 60,
+  "3m": 180,
   "5m": 300,
   "15m": 900,
+  "30m": 1800,
   "1h": 3600,
   "4h": 14400,
+  "1d": 86400,
+  "1w": 604800,
+  "1M": 2592000, // 30d (best-effort)
 };
-const TF_VALID_STR = new Set(["1m", "5m", "15m", "1h", "4h"]);
+// v2 granularity accepts a subset; we attempt v2 first and fall back to v1 numeric seconds.
+const TF_VALID_STR = new Set([
+  "5s",
+  "15s",
+  "30s",
+  "1m",
+  "3m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+  "1M",
+]);
 
 function toV2Symbol(sym: string) {
   return sym.replace("_UMCBL", "");
