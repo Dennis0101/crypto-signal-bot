@@ -15,39 +15,67 @@ import { createRouter as createSettingsRouter } from './routes/settings.js';
 import { createRouter as createAnalysisRouter } from './routes/analysis.js';
 import { createRouter as createTradingRouter } from './routes/trading.js';
 
-const app = express();
+export function createApp() {
+  const app = express();
 
-app.set('trust proxy', 1);
+  app.set('trust proxy', 1);
 
-app.use(helmet({
-  contentSecurityPolicy: false, // CSP will be set by web app when bundled
-}));
-app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
+  app.use(helmet({
+    contentSecurityPolicy: false, // CSP will be set by web app when bundled
+  }));
+  app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 
-app.use(express.json({ limit: '256kb' }));
-app.use(cookieParser());
+  app.use(express.json({ limit: '256kb' }));
+  app.use(cookieParser());
 
-app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+  app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
-app.use(authOptional);
+  app.use(authOptional);
 
 // Serve web UI (single-binary SaaS feel)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const webDir = path.join(__dirname, 'web');
-app.use('/_app', express.static(webDir, { maxAge: '1h', etag: true }));
-app.get('/_app/styles.css', (_req, res) => res.sendFile(path.join(webDir, 'styles.css')));
-app.get('/_app/app.js', (_req, res) => res.sendFile(path.join(webDir, 'app.js')));
-app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const webDir = path.join(__dirname, 'web');
+  app.use('/_app', express.static(webDir, { maxAge: '1h', etag: true }));
+  app.get('/_app/styles.css', (_req, res) => res.sendFile(path.join(webDir, 'styles.css')));
+  app.get('/_app/app.js', (_req, res) => res.sendFile(path.join(webDir, 'app.js')));
 
-app.use('/v1/auth', createAuthRouter());
-app.use('/v1/exchange-keys', createKeysRouter());
-app.use('/v1/settings', createSettingsRouter());
-app.use('/v1/analysis', createAnalysisRouter());
-app.use('/v1/trading', createTradingRouter());
-app.use('/v1/market', createMarketRouter());
-app.use('/v1/trades', createTradesRouter());
+  // Vendor: serve lightweight-charts from local node_modules (no CDN dependency)
+  const vendorCharts = path.join(process.cwd(), 'node_modules', 'lightweight-charts', 'dist', 'lightweight-charts.esm.production.js');
+  app.get('/_app/vendor/lightweight-charts.js', (_req, res) => res.sendFile(vendorCharts));
 
-const port = Number(process.env.SAAS_PORT || 8080);
-app.listen(port, () => logger.info({ port }, 'SaaS API listening'));
+  app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
 
+  app.use('/v1/auth', createAuthRouter());
+  app.use('/v1/exchange-keys', createKeysRouter());
+  app.use('/v1/settings', createSettingsRouter());
+  app.use('/v1/analysis', createAnalysisRouter());
+  app.use('/v1/trading', createTradingRouter());
+  app.use('/v1/market', createMarketRouter());
+  app.use('/v1/trades', createTradesRouter());
+
+  return app;
+}
+
+export async function main() {
+  const app = createApp();
+  const port = Number(process.env.SAAS_PORT || 8080);
+  app.listen(port, () => logger.info({ port }, 'SaaS API listening'));
+}
+
+// Only listen when executed as the entrypoint.
+const isEntry = (() => {
+  try {
+    if (!process.argv[1]) return false;
+    return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+  } catch {
+    return false;
+  }
+})();
+
+if (isEntry) {
+  main().catch((e) => {
+    logger.error({ err: String(e?.message ?? e) }, 'SaaS API crashed');
+    process.exit(1);
+  });
+}

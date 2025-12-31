@@ -1,6 +1,8 @@
 import { prisma } from './db/prisma.js';
 import { logger } from '../utils/logger.js';
 import { Prisma } from '@prisma/client';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadBitgetCreds } from './exchanges/keyVault.js';
 import {
   bitgetAllPositions,
@@ -379,7 +381,16 @@ export async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isEntry = (() => {
+  try {
+    if (!process.argv[1]) return false;
+    return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+  } catch {
+    return false;
+  }
+})();
+
+if (isEntry) {
   main().catch((e) => {
     // Avoid leaking secrets
     logger.error({ err: String(e?.message ?? e) }, 'Worker crashed');

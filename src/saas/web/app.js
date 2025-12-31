@@ -1,4 +1,4 @@
-import { createChart } from 'https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.1/dist/lightweight-charts.esm.production.js';
+import { createChart } from '/_app/vendor/lightweight-charts.js';
 
 const el = (id) => document.getElementById(id);
 const statusText = el('statusText');
