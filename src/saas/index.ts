@@ -56,7 +56,11 @@ export function createApp() {
 
   app.get('/', (_req, res) => {
     if (!isProd) res.setHeader('Cache-Control', 'no-store');
-    res.sendFile(path.join(webDir, 'index.html'));
+    const webAppUrl = process.env.WEB_APP_URL;
+    if (webAppUrl && webAppUrl !== '/' && !webAppUrl.includes(`:${process.env.SAAS_PORT || 8080}`)) {
+      return res.redirect(webAppUrl);
+    }
+    return res.sendFile(path.join(webDir, 'index.html'));
   });
 
   app.use('/v1/auth', createAuthRouter());

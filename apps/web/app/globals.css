@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Keep the design system stable across Tailwind versions */
+:root{
+  --bg:#0b0f14;
+  --panel:#0f1722;
+  --text:#e6eef6;
+  --muted:#8aa0b6;
+  --line:rgba(38,60,84,.55);
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(1100px 520px at 75% -10%, rgba(110,231,255,.10), transparent 60%),
+              radial-gradient(900px 460px at 10% 0%, rgba(46,229,157,.07), transparent 55%),
+              #0b0f14;
+  color: #e6eef6;
+}
+
+@layer components {
+  .ctl {
+    @apply h-9 rounded-xl border bg-black/40 px-3 outline-none transition;
+    @apply border-[color:var(--line)] text-[color:var(--text)];
+  }
+  .ctl:focus { @apply border-[rgba(110,231,255,.55)]; }
+  .btn {
+    @apply h-9 rounded-xl border border-[rgba(110,231,255,.18)] bg-[rgba(110,231,255,.11)] px-3 text-sm transition;
+    @apply text-[color:var(--text)];
+  }
+  .btn:hover { @apply border-[rgba(110,231,255,.28)]; }
+  .btn-ghost { @apply bg-black/35; @apply border-[color:var(--line)]; }
+  .btn-danger { @apply border-[rgba(255,77,109,.28)] bg-[rgba(255,77,109,.10)]; }
+}
+
