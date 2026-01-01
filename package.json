@@ -6,7 +6,7 @@
     "dev": "tsx src/index.ts",
     "saas:dev": "tsx src/saas/index.ts",
     "saas:worker": "tsx src/saas/worker.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-saas-web.mjs",
     "start": "node dist/index.js",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

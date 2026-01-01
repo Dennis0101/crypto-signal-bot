@@ -15,6 +15,7 @@ import { createRouter as createAnalysisRouter } from './routes/analysis.js';
 import { createRouter as createTradingRouter } from './routes/trading.js';
 export function createApp() {
     const app = express();
+    const isProd = (process.env.NODE_ENV ?? 'development') === 'production';
     app.set('trust proxy', 1);
     app.use(helmet({
         contentSecurityPolicy: false, // CSP will be set by web app when bundled
@@ -28,13 +29,22 @@ export function createApp() {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const webDir = path.join(__dirname, 'web');
-    app.use('/_app', express.static(webDir, { maxAge: '1h', etag: true }));
-    app.get('/_app/styles.css', (_req, res) => res.sendFile(path.join(webDir, 'styles.css')));
-    app.get('/_app/app.js', (_req, res) => res.sendFile(path.join(webDir, 'app.js')));
+    app.use('/_app', express.static(webDir, {
+        maxAge: isProd ? '1h' : 0,
+        etag: true,
+        setHeaders(res) {
+            if (!isProd)
+                res.setHeader('Cache-Control', 'no-store');
+        },
+    }));
     // Vendor: serve lightweight-charts from local node_modules (no CDN dependency)
     const vendorCharts = path.join(process.cwd(), 'node_modules', 'lightweight-charts', 'dist', 'lightweight-charts.esm.production.js');
     app.get('/_app/vendor/lightweight-charts.js', (_req, res) => res.sendFile(vendorCharts));
-    app.get('/', (_req, res) => res.sendFile(path.join(webDir, 'index.html')));
+    app.get('/', (_req, res) => {
+        if (!isProd)
+            res.setHeader('Cache-Control', 'no-store');
+        res.sendFile(path.join(webDir, 'index.html'));
+    });
     app.use('/v1/auth', createAuthRouter());
     app.use('/v1/exchange-keys', createKeysRouter());
     app.use('/v1/settings', createSettingsRouter());
