@@ -103,6 +103,8 @@ export async function oidcStart(provider: Provider): Promise<OidcStart> {
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
+    // Apple commonly returns authorization response via POST.
+    ...(provider === 'apple' ? { response_mode: 'form_post' } : {}),
   });
 
   return { authorizationUrl: authorizationUrl.toString(), state, codeVerifier };

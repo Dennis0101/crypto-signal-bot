@@ -105,3 +105,47 @@ FX_USDKRW=1400
 
 # 4. 실행
 npm run dev
+
+```
+
+---
+
+## 🌐 SaaS (Web) — Google / Apple Login 설정
+
+### 실행
+
+```bash
+# API + Web UI
+npm run saas:dev
+```
+
+### 필수 환경변수
+
+```bash
+# DB
+DATABASE_URL=postgresql://...
+
+# Session/key vault encryption (32 bytes, base64)
+KEY_ENC_MASTER_B64=...
+
+# Web routing (for callback URL construction)
+SAAS_PORT=8080
+API_BASE_URL=http://localhost:8080
+WEB_APP_URL=http://localhost:8080/
+
+# Google OIDC
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=http://localhost:8080/v1/auth/google/callback
+
+# Apple OIDC
+APPLE_TEAM_ID=...
+APPLE_CLIENT_ID=...        # Services ID
+APPLE_KEY_ID=...
+APPLE_REDIRECT_URI=http://localhost:8080/v1/auth/apple/callback
+APPLE_PRIVATE_KEY_P8="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+```
+
+### 중요 (Apple)
+- Apple은 콜백을 `response_mode=form_post`로 보내는 경우가 흔해서, 서버는 `POST /v1/auth/apple/callback`도 처리합니다.
+- Apple은 최초 동의 시점 이후에는 `name` 같은 프로필 값이 비어 올 수 있습니다(정상 동작).

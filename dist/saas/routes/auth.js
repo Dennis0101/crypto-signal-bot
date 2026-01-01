@@ -20,35 +20,7 @@ function setShortCookie(res, name, value) {
 }
 export function createRouter() {
     const r = Router();
-    r.get('/me', async (req, res) => {
-        const raw = getSessionTokenFromReq(req);
-        if (!raw)
-            return res.json({ user: null });
-        const sess = await resolveSession(raw);
-        if (!sess)
-            return res.json({ user: null });
-        const u = await prisma.user.findUnique({
-            where: { id: sess.userId },
-            select: { id: true, email: true, name: true, avatarUrl: true, tier: true, tierUntil: true },
-        });
-        return res.json({ user: u ?? null });
-    });
-    r.post('/logout', async (req, res) => {
-        const raw = getSessionTokenFromReq(req);
-        clearSessionCookie(res);
-        if (raw) {
-            await revokeSession(raw).catch(() => { });
-        }
-        res.json({ ok: true });
-    });
-    r.get('/:provider/start', async (req, res) => {
-        const provider = ProviderSchema.parse(req.params.provider);
-        const { authorizationUrl, state, codeVerifier } = await oidcStart(provider);
-        // Store state+verifier in httpOnly cookie (server-only)
-        setShortCookie(res, oidcCookieName(provider), JSON.stringify({ state, codeVerifier }));
-        res.redirect(authorizationUrl);
-    });
-    r.get('/:provider/callback', async (req, res) => {
+    async function handleCallback(req, res) {
         const provider = ProviderSchema.parse(req.params.provider);
         const rawCookie = req.cookies?.[oidcCookieName(provider)];
         if (!rawCookie)
@@ -60,19 +32,30 @@ export function createRouter() {
         catch {
             return res.status(400).send('Invalid OIDC cookie');
         }
-        const state = String(parsed?.state ?? '');
+        const expectedState = String(parsed?.state ?? '');
         const codeVerifier = String(parsed?.codeVerifier ?? '');
-        if (!state || !codeVerifier)
+        if (!expectedState || !codeVerifier)
             return res.status(400).send('Invalid OIDC cookie payload');
-        const q = new URLSearchParams(req.query);
-        if (q.get('state') !== state)
+        // Support both query callbacks (GET) and form_post (POST) for Apple.
+        const qp = new URLSearchParams(req.query);
+        const bp = new URLSearchParams((req.body ?? {}));
+        const state = qp.get('state') || bp.get('state') || '';
+        const code = qp.get('code') || bp.get('code') || '';
+        const error = qp.get('error') || bp.get('error') || '';
+        if (error)
+            return res.status(400).send(`OIDC error: ${error}`);
+        if (!state || !code)
+            return res.status(400).send('Missing state/code');
+        if (state !== expectedState)
             return res.status(400).send('State mismatch');
         const base = process.env.API_BASE_URL || `http://localhost:${process.env.SAAS_PORT || 8080}`;
-        const currentUrl = new URL(req.originalUrl, base);
+        const currentUrl = new URL(req.path, base);
+        currentUrl.searchParams.set('state', state);
+        currentUrl.searchParams.set('code', code);
         const { email, name, picture, providerAccountId } = await oidcCallback({
             provider,
             currentUrl,
-            expectedState: state,
+            expectedState,
             codeVerifier,
         });
         // Upsert auth identity (server-only tables)
@@ -111,6 +94,36 @@ export function createRouter() {
         res.clearCookie(oidcCookieName(provider), { path: '/' });
         const redirectTo = process.env.WEB_APP_URL || '/';
         res.redirect(redirectTo);
+    }
+    r.get('/me', async (req, res) => {
+        const raw = getSessionTokenFromReq(req);
+        if (!raw)
+            return res.json({ user: null });
+        const sess = await resolveSession(raw);
+        if (!sess)
+            return res.json({ user: null });
+        const u = await prisma.user.findUnique({
+            where: { id: sess.userId },
+            select: { id: true, email: true, name: true, avatarUrl: true, tier: true, tierUntil: true },
+        });
+        return res.json({ user: u ?? null });
     });
+    r.post('/logout', async (req, res) => {
+        const raw = getSessionTokenFromReq(req);
+        clearSessionCookie(res);
+        if (raw) {
+            await revokeSession(raw).catch(() => { });
+        }
+        res.json({ ok: true });
+    });
+    r.get('/:provider/start', async (req, res) => {
+        const provider = ProviderSchema.parse(req.params.provider);
+        const { authorizationUrl, state, codeVerifier } = await oidcStart(provider);
+        // Store state+verifier in httpOnly cookie (server-only)
+        setShortCookie(res, oidcCookieName(provider), JSON.stringify({ state, codeVerifier }));
+        res.redirect(authorizationUrl);
+    });
+    r.get('/:provider/callback', handleCallback);
+    r.post('/:provider/callback', handleCallback);
     return r;
 }
